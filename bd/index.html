@@ -1,1 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本差异比对工具</title>
+    <!-- 引入 Tailwind CSS 用于快速构建美观的界面 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Google 的 diff-match-patch 库的纯 JS 实现 (jsdiff) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
+    
+    <style>
+        /* 自定义样式补充 */
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background-color: #f3f4f6;
+        }
+        
+        /* 保持文本区域的换行符 */
+        .diff-content {
+            white-space: pre-wrap;
+            word-break: break-all;
+            min-height: 300px;
+            font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            line-height: 1.6;
+        }
 
+        /* 差异高亮样式 */
+        .del-highlight {
+            background-color: #fecaca; /* 红色背景 */
+            color: #b91c1c;
+            text-decoration: line-through;
+            padding: 2px 0;
+            border-radius: 2px;
+        }
+
+        .add-highlight {
+            background-color: #bbf7d0; /* 绿色背景 */
+            color: #15803d;
+            padding: 2px 0;
+            border-radius: 2px;
+            font-weight: bold;
+        }
+
+        /* 滚动条美化 */
+        textarea::-webkit-scrollbar, div::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        textarea::-webkit-scrollbar-thumb, div::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-track, div::-webkit-scrollbar-track {
+            background-color: #f1f5f9;
+        }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- 头部 -->
+    <header class="bg-white border-b border-gray-200 shadow-sm shrink-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between">
+            <div class="flex items-center gap-3 mb-3 md:mb-0">
+                <div class="bg-blue-600 text-white p-2 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                </div>
+                <h1 class="text-xl font-bold text-slate-800">文本差异比对工具</h1>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <div class="flex bg-slate-100 p-1 rounded-lg">
+                    <button onclick="setMode('chars')" id="btn-chars" class="px-3 py-1.5 rounded-md text-sm font-medium transition-all bg-white shadow text-blue-600">字符级比对</button>
+                    <button onclick="setMode('words')" id="btn-words" class="px-3 py-1.5 rounded-md text-sm font-medium text-slate-500 transition-all hover:text-slate-700">单词/词组级</button>
+                    <button onclick="setMode('lines')" id="btn-lines" class="px-3 py-1.5 rounded-md text-sm font-medium text-slate-500 transition-all hover:text-slate-700">行级</button>
+                </div>
+                <button onclick="clearAll()" class="text-sm text-slate-500 hover:text-red-500 underline">清空内容</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主体内容 -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden max-w-full">
+        
+        <!-- 左侧：输入区域 -->
+        <div class="flex-1 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 h-1/2 md:h-full">
+            <!-- 标题栏 -->
+            <div class="bg-slate-50 px-4 py-2 border-b border-gray-200 flex justify-between items-center">
+                <span class="font-semibold text-slate-600">原文本 (版本 A)</span>
+                <span class="text-xs text-slate-400">在此粘贴原始内容</span>
+            </div>
+            <!-- 输入框 -->
+            <textarea id="original" class="flex-1 w-full p-4 resize-none focus:outline-none focus:bg-blue-50/30 transition-colors text-sm md:text-base font-mono leading-relaxed" placeholder="请在此处粘贴第一段文字..."></textarea>
+            <!-- 结果展示 (默认隐藏，点击比对后显示) -->
+            <div id="result-original" class="hidden flex-1 w-full p-4 overflow-auto bg-slate-50 diff-content text-sm md:text-base border-t border-gray-100"></div>
+        </div>
+
+        <!-- 中间：操作栏 (移动端在中间，桌面端可能需要浮动，这里简化为底部或直接响应式触发) -->
+        <div class="hidden md:flex flex-col justify-center items-center bg-white px-2 border-r border-gray-200 z-10">
+            <button onclick="compareText()" class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-transform hover:scale-110 active:scale-95 group" title="开始比对">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 group-hover:animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- 移动端比对按钮 (悬浮) -->
+        <button onclick="compareText()" class="md:hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-600 text-white p-3 rounded-full shadow-xl z-50">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+            </svg>
+        </button>
+
+        <!-- 右侧：输入区域 -->
+        <div class="flex-1 flex flex-col h-1/2 md:h-full">
+            <!-- 标题栏 -->
+            <div class="bg-slate-50 px-4 py-2 border-b border-gray-200 flex justify-between items-center">
+                <span class="font-semibold text-slate-600">新文本 (版本 B)</span>
+                <span class="text-xs text-slate-400">在此粘贴修改后的内容</span>
+            </div>
+            <!-- 输入框 -->
+            <textarea id="modified" class="flex-1 w-full p-4 resize-none focus:outline-none focus:bg-green-50/30 transition-colors text-sm md:text-base font-mono leading-relaxed" placeholder="请在此处粘贴第二段文字..."></textarea>
+            <!-- 结果展示 -->
+            <div id="result-modified" class="hidden flex-1 w-full p-4 overflow-auto bg-slate-50 diff-content text-sm md:text-base border-t border-gray-100"></div>
+        </div>
+
+    </main>
+
+    <!-- 底部状态栏 -->
+    <footer class="bg-white border-t border-gray-200 py-2 px-4 text-xs text-slate-500 flex justify-between items-center">
+        <div>
+            <span class="inline-block w-3 h-3 bg-red-200 mr-1 align-middle rounded-sm"></span> 删除的内容
+            <span class="inline-block w-3 h-3 bg-green-200 ml-3 mr-1 align-middle rounded-sm"></span> 新增的内容
+        </div>
+        <div id="status-msg">准备就绪</div>
+    </footer>
+
+    <script>
+        // 当前比对模式
+        let currentMode = 'chars';
+
+        // 设置模式
+        function setMode(mode) {
+            currentMode = mode;
+            // 更新按钮样式
+            document.querySelectorAll('header button[id^="btn-"]').forEach(btn => {
+                btn.classList.remove('bg-white', 'shadow', 'text-blue-600');
+                btn.classList.add('text-slate-500');
+            });
+            
+            const activeBtn = document.getElementById(`btn-${mode}`);
+            activeBtn.classList.remove('text-slate-500');
+            activeBtn.classList.add('bg-white', 'shadow', 'text-blue-600');
+
+            // 如果已经有内容，立即重新比对
+            if (document.getElementById('result-original').innerHTML !== '') {
+                compareText();
+            }
+        }
+
+        function clearAll() {
+            document.getElementById('original').value = '';
+            document.getElementById('modified').value = '';
+            resetView();
+            document.getElementById('status-msg').textContent = '已清空';
+        }
+
+        // 重置视图到编辑模式
+        function resetView() {
+            document.getElementById('original').style.display = 'block';
+            document.getElementById('modified').style.display = 'block';
+            document.getElementById('result-original').style.display = 'none';
+            document.getElementById('result-modified').style.display = 'none';
+            document.getElementById('result-original').innerHTML = '';
+            document.getElementById('result-modified').innerHTML = '';
+        }
+
+        function compareText() {
+            const originalText = document.getElementById('original').value;
+            const modifiedText = document.getElementById('modified').value;
+
+            if (!originalText && !modifiedText) {
+                alert("请先输入需要比对的文字");
+                return;
+            }
+
+            // 切换到结果视图
+            document.getElementById('original').style.display = 'none';
+            document.getElementById('modified').style.display = 'none';
+            const resOrig = document.getElementById('result-original');
+            const resMod = document.getElementById('result-modified');
+            resOrig.style.display = 'block';
+            resMod.style.display = 'block';
+
+            // 执行 Diff 算法
+            let diff;
+            // 根据不同模式调用 jsdiff 不同的方法
+            if (currentMode === 'chars') {
+                // 字符级 (适合中文精确比对)
+                diff = Diff.diffChars(originalText, modifiedText);
+            } else if (currentMode === 'words') {
+                // 单词级 (适合英文或以空格分词的场景，中文如果不分词效果一般)
+                diff = Diff.diffWords(originalText, modifiedText);
+            } else {
+                // 行级 (适合代码或长列表)
+                diff = Diff.diffLines(originalText, modifiedText);
+            }
+
+            const fragmentOriginal = document.createDocumentFragment();
+            const fragmentModified = document.createDocumentFragment();
+            
+            let changesCount = 0;
+
+            diff.forEach((part) => {
+                // part.added: boolean - 是否是新增
+                // part.removed: boolean - 是否是删除
+                // part.value: string - 内容
+
+                if (part.removed) {
+                    changesCount++;
+                    // 在左侧（原版）显示为红色删除线
+                    const span = document.createElement('span');
+                    span.className = 'del-highlight';
+                    span.appendChild(document.createTextNode(part.value));
+                    fragmentOriginal.appendChild(span);
+                    // 右侧不显示这部分（或者可以在右侧不显示，保持对齐较难，这里采用经典左右差异逻辑：左侧显示旧的，右侧显示新的）
+                } else if (part.added) {
+                    changesCount++;
+                    // 在右侧（新版）显示为绿色高亮
+                    const span = document.createElement('span');
+                    span.className = 'add-highlight';
+                    span.appendChild(document.createTextNode(part.value));
+                    fragmentModified.appendChild(span);
+                } else {
+                    // 没有变化，两边都显示
+                    fragmentOriginal.appendChild(document.createTextNode(part.value));
+                    fragmentModified.appendChild(document.createTextNode(part.value));
+                }
+            });
+
+            resOrig.innerHTML = '';
+            resMod.innerHTML = '';
+            resOrig.appendChild(fragmentOriginal);
+            resMod.appendChild(fragmentModified);
+
+            // 更新状态
+            document.getElementById('status-msg').textContent = `比对完成，发现 ${changesCount} 处差异`;
+            
+            // 自动回到顶部
+            resOrig.scrollTop = 0;
+            resMod.scrollTop = 0;
+        }
+
+        // 双击结果区域返回编辑模式
+        document.getElementById('result-original').addEventListener('dblclick', resetView);
+        document.getElementById('result-modified').addEventListener('dblclick', resetView);
+
+        // 简单的同步滚动效果 (当鼠标悬停在某个区域时，控制另一个区域跟随滚动)
+        const d1 = document.getElementById('result-original');
+        const d2 = document.getElementById('result-modified');
+        
+        let isSyncingLeft = false;
+        let isSyncingRight = false;
+
+        d1.onscroll = function() {
+            if (!isSyncingLeft) {
+                isSyncingRight = true;
+                // 按比例同步
+                const percentage = d1.scrollTop / (d1.scrollHeight - d1.offsetHeight);
+                d2.scrollTop = percentage * (d2.scrollHeight - d2.offsetHeight);
+            }
+            isSyncingLeft = false;
+        };
+
+        d2.onscroll = function() {
+            if (!isSyncingRight) {
+                isSyncingLeft = true;
+                const percentage = d2.scrollTop / (d2.scrollHeight - d2.offsetHeight);
+                d1.scrollTop = percentage * (d1.scrollHeight - d1.offsetHeight);
+            }
+            isSyncingRight = false;
+        };
+
+    </script>
+</body>
+</html>
