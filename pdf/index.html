@@ -1,1 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF转图片工具</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .upload-section {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 60px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            color: #999;
+            font-size: 0.9em;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .controls {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            display: none;
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .progress-section {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #f0f0f0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .progress-text {
+            text-align: center;
+            color: #555;
+            font-size: 0.9em;
+        }
+
+        .images-section {
+            display: none;
+        }
+
+        .image-item {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .image-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .page-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .download-btn {
+            padding: 8px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .image-container {
+            text-align: center;
+            overflow: auto;
+        }
+
+        .image-container canvas {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 PDF转图片工具</h1>
+            <p>将PDF文件的每一页转换为高清图片</p>
+        </div>
+
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">点击或拖拽PDF文件到此处</div>
+                <div class="upload-hint">支持PDF格式文件</div>
+            </div>
+            <input type="file" id="fileInput" accept=".pdf">
+        </div>
+
+        <div class="controls" id="controls">
+            <div class="control-buttons">
+                <button class="btn btn-primary" id="downloadAllBtn">📥 下载所有图片</button>
+                <button class="btn btn-secondary" id="resetBtn">🔄 重新选择文件</button>
+            </div>
+        </div>
+
+        <div class="progress-section" id="progressSection">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill">0%</div>
+            </div>
+            <div class="progress-text" id="progressText">准备转换...</div>
+        </div>
+
+        <div class="images-section" id="imagesSection"></div>
+    </div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const controls = document.getElementById('controls');
+        const progressSection = document.getElementById('progressSection');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const imagesSection = document.getElementById('imagesSection');
+        const downloadAllBtn = document.getElementById('downloadAllBtn');
+        const resetBtn = document.getElementById('resetBtn');
+
+        let pdfImages = [];
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type === 'application/pdf') {
+                handleFile(file);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        });
+
+        async function handleFile(file) {
+            pdfImages = [];
+            imagesSection.innerHTML = '';
+            imagesSection.style.display = 'none';
+            controls.style.display = 'none';
+            progressSection.style.display = 'block';
+            
+            const fileReader = new FileReader();
+            fileReader.onload = async function() {
+                const typedarray = new Uint8Array(this.result);
+                
+                try {
+                    const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                    const totalPages = pdf.numPages;
+                    
+                    progressText.textContent = `共 ${totalPages} 页，开始转换...`;
+                    
+                    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+                        const page = await pdf.getPage(pageNum);
+                        const viewport = page.getViewport({ scale: 2.0 });
+                        
+                        const canvas = document.createElement('canvas');
+                        const context = canvas.getContext('2d');
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+                        
+                        await page.render({
+                            canvasContext: context,
+                            viewport: viewport
+                        }).promise;
+                        
+                        const imageData = canvas.toDataURL('image/png');
+                        pdfImages.push({
+                            pageNum: pageNum,
+                            canvas: canvas,
+                            imageData: imageData
+                        });
+                        
+                        const progress = Math.round((pageNum / totalPages) * 100);
+                        progressFill.style.width = progress + '%';
+                        progressFill.textContent = progress + '%';
+                        progressText.textContent = `正在转换第 ${pageNum} / ${totalPages} 页...`;
+                    }
+                    
+                    displayImages();
+                    controls.style.display = 'block';
+                    progressSection.style.display = 'none';
+                    
+                } catch (error) {
+                    console.error('PDF处理错误:', error);
+                    progressText.textContent = '转换失败，请重试';
+                }
+            };
+            
+            fileReader.readAsArrayBuffer(file);
+        }
+
+        function displayImages() {
+            imagesSection.style.display = 'block';
+            
+            pdfImages.forEach((img, index) => {
+                const imageItem = document.createElement('div');
+                imageItem.className = 'image-item';
+                
+                imageItem.innerHTML = `
+                    <div class="image-header">
+                        <div class="page-title">第 ${img.pageNum} 页</div>
+                        <button class="download-btn" onclick="downloadImage(${index})">下载此页</button>
+                    </div>
+                    <div class="image-container"></div>
+                `;
+                
+                imageItem.querySelector('.image-container').appendChild(img.canvas);
+                imagesSection.appendChild(imageItem);
+            });
+        }
+
+        function downloadImage(index) {
+            const img = pdfImages[index];
+            
+            // 检测是否为iOS设备
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            
+            if (isIOS) {
+                // iOS使用新窗口打开图片，用户可以长按保存
+                const newWindow = window.open();
+                newWindow.document.write(`
+                    <html>
+                    <head>
+                        <title>第 ${img.pageNum} 页</title>
+                        <style>
+                            body { margin: 0; padding: 20px; text-align: center; background: #f0f0f0; }
+                            img { max-width: 100%; height: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+                            .tip { margin: 20px; color: #666; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="tip">📱 长按图片选择"存储图像"来保存</div>
+                        <img src="${img.imageData}" alt="第 ${img.pageNum} 页">
+                    </body>
+                    </html>
+                `);
+            } else {
+                // 安卓和桌面浏览器直接下载
+                const link = document.createElement('a');
+                link.download = `page-${img.pageNum}.png`;
+                link.href = img.imageData;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        downloadAllBtn.addEventListener('click', () => {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            
+            if (isIOS) {
+                // iOS设备：在新窗口显示所有图片
+                const newWindow = window.open();
+                let htmlContent = `
+                    <html>
+                    <head>
+                        <title>所有页面</title>
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <style>
+                            body { 
+                                margin: 0; 
+                                padding: 20px; 
+                                background: #f0f0f0; 
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                            }
+                            .tip { 
+                                position: sticky;
+                                top: 0;
+                                background: white;
+                                padding: 15px; 
+                                margin-bottom: 20px;
+                                text-align: center; 
+                                color: #666;
+                                border-radius: 10px;
+                                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                                z-index: 100;
+                            }
+                            .page-item {
+                                background: white;
+                                margin-bottom: 30px;
+                                padding: 20px;
+                                border-radius: 10px;
+                                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                            }
+                            .page-title {
+                                font-size: 1.2em;
+                                font-weight: 600;
+                                color: #667eea;
+                                margin-bottom: 15px;
+                            }
+                            img { 
+                                max-width: 100%; 
+                                height: auto; 
+                                display: block;
+                                border-radius: 8px;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="tip">📱 长按任意图片选择"存储图像"来保存</div>
+                `;
+                
+                pdfImages.forEach(img => {
+                    htmlContent += `
+                        <div class="page-item">
+                            <div class="page-title">第 ${img.pageNum} 页</div>
+                            <img src="${img.imageData}" alt="第 ${img.pageNum} 页">
+                        </div>
+                    `;
+                });
+                
+                htmlContent += `
+                    </body>
+                    </html>
+                `;
+                
+                newWindow.document.write(htmlContent);
+            } else {
+                // 安卓和桌面浏览器批量下载
+                pdfImages.forEach((img, index) => {
+                    setTimeout(() => {
+                        downloadImage(index);
+                    }, index * 200);
+                });
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            fileInput.value = '';
+            pdfImages = [];
+            imagesSection.innerHTML = '';
+            imagesSection.style.display = 'none';
+            controls.style.display = 'none';
+            progressSection.style.display = 'none';
+            progressFill.style.width = '0%';
+            progressFill.textContent = '0%';
+        });
+    </script>
+</body>
+</html>
