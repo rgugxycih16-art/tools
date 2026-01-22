@@ -1,1 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>移动代码编辑器</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#1e1e1e;color:#d4d4d4;overflow:hidden}
+    .container{display:flex;flex-direction:column;height:100vh}
+    .toolbar{background:#2d2d30;padding:10px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid #3e3e42}
+    .btn{padding:8px 12px;background:#0e639c;color:#fff;border:none;border-radius:4px;font-size:14px;cursor:pointer;touch-action:manipulation}
+    .btn:active{background:#1177bb}
+    .btn-secondary{background:#3e3e42}
+    .btn-secondary:active{background:#505052}
+    select{padding:8px;background:#3e3e42;color:#fff;border:none;border-radius:4px;font-size:14px}
+    .editor-container{flex:1;display:flex;flex-direction:column;overflow:hidden}
+    .tabs{background:#2d2d30;display:flex;gap:2px;padding:0 10px;overflow-x:auto}
+    .tab{padding:8px 16px;background:#1e1e1e;border:none;color:#969696;cursor:pointer;white-space:nowrap;border-top-left-radius:4px;border-top-right-radius:4px}
+    .tab.active{background:#1e1e1e;color:#fff;border-bottom:2px solid #0e639c}
+    #editor{flex:1;padding:15px;background:#1e1e1e;color:#d4d4d4;font-family:'Menlo','Monaco','Courier New',monospace;font-size:14px;border:none;resize:none;outline:none;line-height:1.5;overflow-y:auto;-webkit-overflow-scrolling:touch}
+    .preview-container{display:none;flex-direction:column;height:50vh;border-top:1px solid #3e3e42}
+    .preview-container.active{display:flex}
+    .preview-header{background:#2d2d30;padding:8px 10px;font-size:12px;color:#969696}
+    #preview{flex:1;background:#fff;border:none;width:100%}
+    .keyboard-helper{background:#2d2d30;padding:8px 10px;display:flex;gap:5px;overflow-x:auto;border-top:1px solid #3e3e42}
+    .key-btn{padding:6px 10px;background:#3e3e42;color:#fff;border:none;border-radius:3px;font-size:13px;font-family:monospace;white-space:nowrap;touch-action:manipulation}
+    .key-btn:active{background:#505052}
+    .status-bar{background:#007acc;color:#fff;padding:4px 10px;font-size:12px;text-align:center}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="toolbar">
+      <select id="language">
+        <option value="html">HTML</option>
+        <option value="css">CSS</option>
+        <option value="javascript">JavaScript</option>
+        <option value="python">Python</option>
+      </select>
+      <button class="btn" id="runBtn">▶ 运行</button>
+      <button class="btn btn-secondary" id="clearBtn">清空</button>
+      <button class="btn btn-secondary" id="copyBtn">复制</button>
+      <button class="btn btn-secondary" id="downloadBtn">下载</button>
+    </div>
 
+    <div class="tabs">
+      <button class="tab active" data-tab="code">代码</button>
+      <button class="tab" data-tab="preview">预览</button>
+    </div>
+
+    <div class="editor-container">
+      <textarea id="editor" placeholder="在这里编写代码..."></textarea>
+    </div>
+
+    <div class="preview-container" id="previewContainer">
+      <div class="preview-header">预览输出</div>
+      <iframe id="preview"></iframe>
+    </div>
+
+    <div class="keyboard-helper">
+      <button class="key-btn" data-insert="    ">Tab</button>
+      <button class="key-btn" data-insert="{">{</button>
+      <button class="key-btn" data-insert="}">}</button>
+      <button class="key-btn" data-insert="[">[</button>
+      <button class="key-btn" data-insert="]">]</button>
+      <button class="key-btn" data-insert="(">(</button>
+      <button class="key-btn" data-insert=")">)</button>
+      <button class="key-btn" data-insert="<"><</button>
+      <button class="key-btn" data-insert=">">></button>
+      <button class="key-btn" data-insert="/">/</button>
+      <button class="key-btn" data-insert=":">:</button><!-- ← 修复这里 -->
+      <button class="key-btn" data-insert=";">;</button>
+      <button class="key-btn" data-insert="=">=</button>
+    </div>
+
+    <div class="status-bar" id="statusBar">准备就绪</div>
+  </div>
+
+  <script>
+    const editor = document.getElementById('editor');
+    const preview = document.getElementById('preview');
+    const previewContainer = document.getElementById('previewContainer');
+    const statusBar = document.getElementById('statusBar');
+    const languageSelect = document.getElementById('language');
+
+    // 标签切换
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        if (tab.dataset.tab === 'preview') {
+          previewContainer.classList.add('active');
+        } else {
+          previewContainer.classList.remove('active');
+        }
+      });
+    });
+
+    // 运行代码
+    document.getElementById('runBtn').addEventListener('click', () => {
+      const code = editor.value;
+      const lang = languageSelect.value;
+
+      if (lang === 'html' || lang === 'javascript' || lang === 'css') {
+        let content = code;
+
+        if (lang === 'javascript') {
+          content = `
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head><body>
+  <div id="log" style="font-family:monospace;padding:8px"></div>
+  <script>
+    const log = (...args)=>{ document.getElementById('log').innerHTML += '<div style="border-bottom:1px solid #ddd;padding:4px;">' + args.map(a => {
+      try { return JSON.stringify(a); } catch { return String(a); }
+    }).join(' ') + '</div>'; };
+    console.log = log; console.error = log; console.warn = log;
+    ${code}
+  <\/script>
+</body></html>`;
+        } else if (lang === 'css') {
+          content = `
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+  <style>${code}</style>
+</head><body>
+  <h2>CSS 样式已应用</h2>
+  <p>在代码中添加 HTML 元素以查看效果</p>
+</body></html>`;
+        }
+
+        preview.srcdoc = content;
+        document.querySelector('[data-tab="preview"]').click();
+        statusBar.textContent = '✓ 代码已运行';
+      } else {
+        statusBar.textContent = '⚠ ' + lang.toUpperCase() + ' 需要服务器或浏览器内核支持（可考虑 Brython/Pyodide）';
+      }
+    });
+
+    // 清空
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      if (confirm('确定要清空代码吗?')) {
+        editor.value = '';
+        statusBar.textContent = '已清空';
+      }
+    });
+
+    // 复制
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(editor.value);
+        statusBar.textContent = '✓ 已复制到剪贴板';
+      } catch (err) {
+        editor.select();
+        document.execCommand('copy');
+        statusBar.textContent = '✓ 已复制（兼容模式）';
+      }
+    });
+
+    // 下载
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+      const lang = languageSelect.value;
+      const extensions = { html:'html', css:'css', javascript:'js', python:'py' };
+      const blob = new Blob([editor.value], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `code.${extensions[lang]}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      statusBar.textContent = '✓ 文件已下载';
+    });
+
+    // 快捷键插入
+    document.querySelectorAll('.key-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const insert = btn.dataset.insert;
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        const text = editor.value;
+
+        editor.value = text.substring(0, start) + insert + text.substring(end);
+        editor.selectionStart = editor.selectionEnd = start + insert.length;
+        editor.focus();
+      });
+    });
+
+    // 自动缩进
+    editor.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const start = editor.selectionStart;
+        const text = editor.value;
+        const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+        const line = text.substring(lineStart, start);
+        const indent = line.match(/^\s*/)[0];
+
+        e.preventDefault();
+        const insert = '\n' + indent;
+        editor.value = text.substring(0, start) + insert + text.substring(start);
+        editor.selectionStart = editor.selectionEnd = start + insert.length;
+      }
+    });
+
+    // 示例
+    const examples = {
+      html:`<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><title>示例页面</title></head>
+<body><h1>Hello World!</h1><p>这是一个示例页面</p></body></html>`,
+      javascript:`// JavaScript 示例
+console.log('Hello World!');
+const greet = (name) => '你好, ' + name;
+console.log(greet('开发者'));`,
+      css:`/* CSS 示例 */
+body{font-family:Arial,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:20px}
+h2{text-align:center}`,
+      python:`# Python 示例
+def greet(name):
+    return f"你好, {name}!"
+print(greet("开发者"))
+print("Python需要服务器或浏览器内核支持运行")`
+    };
+
+    languageSelect.addEventListener('change', (e) => {
+      if (!editor.value || confirm('切换语言会加载示例代码，确定吗？')) {
+        editor.value = examples[e.target.value];
+      }
+    });
+
+    // 初始加载HTML示例
+    editor.value = examples.html;
+  </script>
+</body>
+</html>
