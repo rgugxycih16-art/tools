@@ -1,1 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VPS 与极客社区聚合检索中心</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Google Fonts Inter 字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 配置 Tailwind 字体和暗黑模式 -->
+    <script>
+        tailwind.config = {
+            darkMode: 'media',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col justify-between transition-colors duration-200">
 
+    <!-- 顶部提示消息框 (替代 alert) -->
+    <div id="toast" class="fixed top-5 left-1/2 transform -translate-x-1/2 z-50 hidden transition-all duration-300">
+        <div class="bg-slate-800 dark:bg-slate-700 text-white px-5 py-3 rounded-xl shadow-lg flex items-center space-x-2 text-sm font-medium border border-slate-700 dark:border-slate-600">
+            <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span id="toast-msg">提示信息</span>
+        </div>
+    </div>
+
+    <!-- 主体内容区 -->
+    <main class="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+        
+        <!-- 头部标题区域 -->
+        <header class="text-center mb-10 sm:mb-12">
+            <div class="inline-flex items-center justify-center p-3 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-2xl mb-4 shadow-sm">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path>
+                </svg>
+            </div>
+            <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white mb-3">
+                极客与 VPS 社区聚合检索
+            </h1>
+            <p class="text-slate-500 dark:text-slate-400 text-sm sm:text-base max-w-xl mx-auto">
+                一站式直达 NodeSeek、Hostloc、V2EX 与 Linux.do，支持多站点关键词聚合搜索。
+            </p>
+        </header>
+
+        <!-- 核心搜索面板 -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl shadow-md border border-slate-200/80 dark:border-slate-800 p-5 sm:p-8 mb-10">
+            <form id="search-form" onsubmit="handleSearch(event)" class="space-y-5">
+                
+                <!-- 搜索输入框与主按钮 -->
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <div class="relative flex-grow">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </div>
+                        <input 
+                            type="text" 
+                            id="search-input" 
+                            placeholder="输入关键词，例如：搬瓦工、甲骨文、黑五、Cloudflare..." 
+                            class="w-full pl-11 pr-10 py-3.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-base"
+                            autocomplete="off"
+                        >
+                        <!-- 清空按钮 -->
+                        <button type="button" id="clear-btn" onclick="clearInput()" class="hidden absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <button 
+                        type="submit" 
+                        class="px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center space-x-2 shrink-0 cursor-pointer"
+                    >
+                        <span>检索所选站点</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- 检索配置选项：站点多选 & 搜索引擎模式切换 -->
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    
+                    <!-- 目标站点勾选 -->
+                    <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-1">检索范围：</span>
+                        
+                        <label class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-700/70 cursor-pointer select-none transition-colors">
+                            <input type="checkbox" name="site" value="nodeseek" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span class="text-sm font-medium">NodeSeek</span>
+                        </label>
+
+                        <label class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-700/70 cursor-pointer select-none transition-colors">
+                            <input type="checkbox" name="site" value="hostloc" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span class="text-sm font-medium">Hostloc</span>
+                        </label>
+
+                        <label class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-700/70 cursor-pointer select-none transition-colors">
+                            <input type="checkbox" name="site" value="v2ex" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span class="text-sm font-medium">V2EX</span>
+                        </label>
+
+                        <label class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-700/70 cursor-pointer select-none transition-colors">
+                            <input type="checkbox" name="site" value="linuxdo" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span class="text-sm font-medium">Linux.do</span>
+                        </label>
+                    </div>
+
+                    <!-- 检索方式切换 -->
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">检索方式：</span>
+                        <select id="search-engine" class="text-sm bg-slate-100 dark:bg-slate-800 border-0 rounded-lg px-3 py-1.5 text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+                            <option value="google">Google 聚合检索 (推荐)</option>
+                            <option value="bing">Bing 聚合检索</option>
+                            <option value="native">直接调用各站内置搜索 (多标签)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 快捷标签 -->
+                <div class="flex flex-wrap items-center gap-2 pt-1">
+                    <span class="text-xs text-slate-400">热门关键词：</span>
+                    <button type="button" onclick="quickKeyword('VPS 优惠')" class="text-xs px-2.5 py-1 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition">VPS 优惠</button>
+                    <button type="button" onclick="quickKeyword('甲骨文')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">甲骨文</button>
+                    <button type="button" onclick="quickKeyword('搬瓦工')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">搬瓦工</button>
+                    <button type="button" onclick="quickKeyword('CF 优选')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">CF 优选</button>
+                    <button type="button" onclick="quickKeyword('白嫖')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">白嫖</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- 社区直达与单站精准检索卡片网格 -->
+        <section>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                    <span>社区直达与单站检索</span>
+                    <span class="text-xs font-normal px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">4 个站点</span>
+                </h2>
+                <span class="text-xs text-slate-400 hidden sm:inline">输入关键词后点击卡片上的“搜本站”可直接精准检索</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                
+                <!-- 卡片 1: NodeSeek -->
+                <div class="group bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700/70 transition-all flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-lg shadow-inner">
+                                    NS
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-900 dark:text-white text-base group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                                        NodeSeek
+                                    </h3>
+                                    <span class="text-xs text-slate-400">nodeseek.com</span>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-1 text-xs font-medium rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+                                VPS / 运维
+                            </span>
+                        </div>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-5 line-clamp-2">
+                            新兴活跃的服务器与网络技术交流社区，VPS 测评、优惠促销与折腾教程聚集地。
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                        <a href="https://www.nodeseek.com/" target="_blank" rel="noopener noreferrer" class="flex-1 py-2 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-xl text-center transition-colors flex items-center justify-center gap-1.5">
+                            <span>访问主页</span>
+                            <svg class="w-3.5 h-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        </a>
+                        <button type="button" onclick="searchSingleSite('nodeseek')" class="py-2 px-3.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-sm font-medium rounded-xl transition-colors flex items-center gap-1 cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <span>搜本站</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 卡片 2: Hostloc -->
+                <div class="group bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700/70 transition-all flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-11 h-11 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-lg shadow-inner">
+                                    HL
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-900 dark:text-white text-base group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                        Hostloc 全球主机交流
+                                    </h3>
+                                    <span class="text-xs text-slate-400">hostloc.com</span>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+                                需登录浏览
+                            </span>
+                        </div>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-5 line-clamp-2">
+                            老牌中文 IDC 与主机站长论坛，包含丰富的服务器交易、域名交流及海外主机情报（直达移动端登录入口）。
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                        <a href="https://hostloc.com/member.php?mod=logging&action=login&mobile=2" target="_blank" rel="noopener noreferrer" class="flex-1 py-2 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-xl text-center transition-colors flex items-center justify-center gap-1.5">
+                            <span>登录 / 进入</span>
+                            <svg class="w-3.5 h-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        </a>
+                        <button type="button" onclick="searchSingleSite('hostloc')" class="py-2 px-3.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 text-sm font-medium rounded-xl transition-colors flex items-center gap-1 cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <span>搜本站</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 卡片 3: V2EX VPS 节点 -->
+                <div class="group bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-slate-400 dark:hover:border-slate-600 transition-all flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-11 h-11 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 flex items-center justify-center font-bold text-lg shadow-inner">
+                                    V2
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-900 dark:text-white text-base group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                        V2EX · VPS 节点
+                                    </h3>
+                                    <span class="text-xs text-slate-400">v2ex.com/go/vps</span>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                创意工作者
+                            </span>
+                        </div>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-5 line-clamp-2">
+                            V2EX 旗下专注虚拟专用服务器（VPS）讨论的垂直节点，高质量技术问答与服务商口碑反馈。
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                        <a href="https://www.v2ex.com/go/vps" target="_blank" rel="noopener noreferrer" class="flex-1 py-2 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-xl text-center transition-colors flex items-center justify-center gap-1.5">
+                            <span>访问节点</span>
+                            <svg class="w-3.5 h-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        </a>
+                        <button type="button" onclick="searchSingleSite('v2ex')" class="py-2 px-3.5 bg-slate-200/80 hover:bg-slate-300/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm font-medium rounded-xl transition-colors flex items-center gap-1 cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <span>搜本站</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 卡片 4: Linux.do -->
+                <div class="group bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-amber-300 dark:hover:border-amber-700/70 transition-all flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-11 h-11 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-lg shadow-inner">
+                                    LD
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-900 dark:text-white text-base group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                                        LINUX DO 始皇社区
+                                    </h3>
+                                    <span class="text-xs text-slate-400">linux.do</span>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
+                                AI / 开源极客
+                            </span>
+                        </div>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-5 line-clamp-2">
+                            真诚、友善、团结、专业的技术社区，汇聚前沿 AI 工具、Linux 运维、开发资源与技术福利分享。
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                        <a href="https://linux.do/" target="_blank" rel="noopener noreferrer" class="flex-1 py-2 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-xl text-center transition-colors flex items-center justify-center gap-1.5">
+                            <span>访问主页</span>
+                            <svg class="w-3.5 h-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        </a>
+                        <button type="button" onclick="searchSingleSite('linuxdo')" class="py-2 px-3.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-300 text-sm font-medium rounded-xl transition-colors flex items-center gap-1 cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <span>搜本站</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- 使用说明小贴士 -->
+        <section class="mt-8 bg-slate-100/80 dark:bg-slate-900/60 rounded-xl p-4 text-xs text-slate-500 dark:text-slate-400 flex items-start space-x-2.5 border border-slate-200/60 dark:border-slate-800">
+            <svg class="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div class="space-y-1">
+                <p><strong>检索提示：</strong>默认采用 <code class="px-1 py-0.5 bg-white dark:bg-slate-800 rounded text-slate-700 dark:text-slate-300">site:域名</code> 语法通过 Google 或 Bing 一次性聚合检索所有勾选的站点，无需登录即可查看公开帖子，且不会受限于各站点的搜索频率限制。</p>
+                <p><strong>内置搜索提示：</strong>若选择“直接调用各站内置搜索”，浏览器将同时为您打开多个标签页（若被拦截，请允许当前页面的弹窗权限）。</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="py-6 text-center text-xs text-slate-400 dark:text-slate-600 border-t border-slate-200/60 dark:border-slate-900">
+        <p>个人极客社区聚合导航与检索工具 · 快捷高效直达</p>
+    </footer>
+
+    <!-- 核心交互脚本 -->
+    <script>
+        // 站点配置映射表
+        const SITES_CONFIG = {
+            nodeseek: {
+                name: 'NodeSeek',
+                domain: 'nodeseek.com',
+                // NodeSeek 站内搜索 URL
+                nativeSearch: (q) => `https://www.nodeseek.com/search?q=${encodeURIComponent(q)}`
+            },
+            hostloc: {
+                name: 'Hostloc',
+                domain: 'hostloc.com',
+                // Hostloc Discuz 搜索入口
+                nativeSearch: (q) => `https://hostloc.com/search.php?mod=forum&srchtxt=${encodeURIComponent(q)}&searchsubmit=yes`
+            },
+            v2ex: {
+                name: 'V2EX',
+                domain: 'v2ex.com',
+                // V2EX 官方 Google 定制搜索或站内检索
+                nativeSearch: (q) => `https://www.google.com/search?q=site:v2ex.com+${encodeURIComponent(q)}`
+            },
+            linuxdo: {
+                name: 'Linux.do',
+                domain: 'linux.do',
+                // Discourse 引擎原生搜索路由
+                nativeSearch: (q) => `https://linux.do/search?q=${encodeURIComponent(q)}`
+            }
+        };
+
+        const searchInput = document.getElementById('search-input');
+        const clearBtn = document.getElementById('clear-btn');
+        let toastTimeout = null;
+
+        // 监听输入框变化，控制清空按钮显隐
+        searchInput.addEventListener('input', () => {
+            if (searchInput.value.trim().length > 0) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+        });
+
+        // 清空输入框
+        function clearInput() {
+            searchInput.value = '';
+            clearBtn.classList.add('hidden');
+            searchInput.focus();
+        }
+
+        // 顶部柔和提示框 (替代 alert)
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-msg');
+            toastMsg.textContent = message;
+            toast.classList.remove('hidden');
+
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // 点击热门关键词自动填充并搜索
+        function quickKeyword(keyword) {
+            searchInput.value = keyword;
+            clearBtn.classList.remove('hidden');
+            executeSearch(keyword);
+        }
+
+        // 处理表单提交搜索
+        function handleSearch(event) {
+            event.preventDefault();
+            const keyword = searchInput.value.trim();
+            if (!keyword) {
+                showToast('请先输入要检索的关键词！');
+                searchInput.focus();
+                return;
+            }
+            executeSearch(keyword);
+        }
+
+        // 执行多站点聚合搜索
+        function executeSearch(keyword) {
+            // 获取勾选的站点
+            const checkedBoxes = document.querySelectorAll('input[name="site"]:checked');
+            const selectedSites = Array.from(checkedBoxes).map(cb => cb.value);
+
+            if (selectedSites.length === 0) {
+                showToast('请至少勾选一个要检索的社区站点！');
+                return;
+            }
+
+            const engine = document.getElementById('search-engine').value;
+
+            try {
+                if (engine === 'native') {
+                    // 模式：直接调用各站点自带的搜索页面（批量打开标签页）
+                    selectedSites.forEach(siteKey => {
+                        const site = SITES_CONFIG[siteKey];
+                        if (site) {
+                            window.open(site.nativeSearch(keyword), '_blank', 'noopener,noreferrer');
+                        }
+                    });
+                    if (selectedSites.length > 1) {
+                        showToast(`已尝试为您打开 ${selectedSites.length} 个站点的内置搜索页`);
+                    }
+                } else {
+                    // 模式：使用 Google 或 Bing 构造 (site:a.com OR site:b.com) 聚合搜索语句
+                    const siteQuery = selectedSites
+                        .map(key => `site:${SITES_CONFIG[key].domain}`)
+                        .join(' OR ');
+                    
+                    const fullQuery = selectedSites.length > 1 
+                        ? `(${siteQuery}) ${keyword}` 
+                        : `${siteQuery} ${keyword}`;
+
+                    const searchUrl = engine === 'bing'
+                        ? `https://www.bing.com/search?q=${encodeURIComponent(fullQuery)}`
+                        : `https://www.google.com/search?q=${encodeURIComponent(fullQuery)}`;
+
+                    window.open(searchUrl, '_blank', 'noopener,noreferrer');
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+                showToast('打开搜索页面时出现异常，请检查浏览器弹窗设置');
+            }
+        }
+
+        // 单站精准检索按钮
+        function searchSingleSite(siteKey) {
+            const keyword = searchInput.value.trim();
+            const site = SITES_CONFIG[siteKey];
+            if (!site) return;
+
+            if (!keyword) {
+                showToast(`请在上方输入框输入关键词后再检索 ${site.name}`);
+                searchInput.focus();
+                return;
+            }
+
+            const engine = document.getElementById('search-engine').value;
+            if (engine === 'native') {
+                window.open(site.nativeSearch(keyword), '_blank', 'noopener,noreferrer');
+            } else {
+                const fullQuery = `site:${site.domain} ${keyword}`;
+                const searchUrl = engine === 'bing'
+                    ? `https://www.bing.com/search?q=${encodeURIComponent(fullQuery)}`
+                    : `https://www.google.com/search?q=${encodeURIComponent(fullQuery)}`;
+                window.open(searchUrl, '_blank', 'noopener,noreferrer');
+            }
+        }
+    </script>
+</body>
+</html>
