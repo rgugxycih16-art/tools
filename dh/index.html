@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="zh-CN" class="dark">
 <head>
@@ -38,27 +39,40 @@
     </div>
 
     <!-- 主体内容容器 -->
-    <div class="relative z-10 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16">
+    <div class="relative z-10 max-w-6xl w-full mx-auto px-3 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-16">
         
-        <!-- 顶部导航栏：问候语、时间与主题切换 -->
-        <header class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-10">
+        <!-- 顶部导航栏：问候语、排序模式与主题切换 -->
+        <header class="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
             <div class="text-center sm:text-left">
-                <h1 id="greeting" class="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 bg-clip-text text-transparent">
+                <h1 id="greeting" class="text-xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 bg-clip-text text-transparent">
                     欢迎回来
                 </h1>
-                <p id="datetime" class="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
+                <p id="datetime" class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
                     正在加载时间...
                 </p>
             </div>
 
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- 调整顺序开关按钮 -->
+                <button id="sortToggleBtn" aria-label="调整卡片顺序" class="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium bg-white dark:bg-darkCard border border-slate-200 dark:border-darkBorder shadow-sm hover:border-indigo-500/50 transition-all duration-200 text-slate-700 dark:text-slate-200">
+                    <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                    </svg>
+                    <span id="sortBtnText">调整顺序</span>
+                </button>
+
+                <!-- 恢复默认顺序按钮 (仅在排序模式显示) -->
+                <button id="resetOrderBtn" class="hidden inline-flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-all">
+                    重置
+                </button>
+
                 <!-- 快捷键提示 -->
-                <span class="hidden md:inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-200/70 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 border border-slate-300/50 dark:border-slate-700/50">
-                    按 <kbd class="mx-1 px-1.5 py-0.5 bg-white dark:bg-slate-700 rounded shadow-sm text-slate-800 dark:text-slate-200 font-sans">/</kbd> 快速搜索
+                <span class="hidden md:inline-flex items-center px-3 py-2 rounded-xl text-xs font-medium bg-slate-200/70 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 border border-slate-300/50 dark:border-slate-700/50">
+                    按 <kbd class="mx-1 px-1.5 py-0.5 bg-white dark:bg-slate-700 rounded shadow-sm text-slate-800 dark:text-slate-200 font-sans">/</kbd> 搜索
                 </span>
 
                 <!-- 主题切换按钮 -->
-                <button id="themeToggle" aria-label="切换深色/浅色模式" class="p-3 rounded-xl bg-white dark:bg-darkCard border border-slate-200 dark:border-darkBorder shadow-sm hover:shadow-md hover:border-indigo-500/50 transition-all duration-200 text-slate-600 dark:text-slate-300">
+                <button id="themeToggle" aria-label="切换深色/浅色模式" class="p-2.5 rounded-xl bg-white dark:bg-darkCard border border-slate-200 dark:border-darkBorder shadow-sm hover:shadow-md hover:border-indigo-500/50 transition-all duration-200 text-slate-600 dark:text-slate-300">
                     <!-- 太阳图标 (浅色模式显示) -->
                     <svg id="sunIcon" class="w-5 h-5 hidden dark:block text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
@@ -71,30 +85,62 @@
             </div>
         </header>
 
-        <!-- 搜索区域：支持站内书签过滤与外部引擎直达 -->
-        <section class="max-w-2xl mx-auto mb-12">
+        <!-- 排序提示横幅 (排序模式开启时显示) -->
+        <div id="sortBanner" class="hidden mb-5 px-4 py-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-600 dark:text-indigo-300 text-xs sm:text-sm flex items-center justify-between">
+            <span>✨ 排序模式已开启：PC端可直接拖拽卡片，手机端可点击卡片上的左右箭头调整顺序，自动保存。</span>
+            <button onclick="toggleSortMode()" class="font-bold underline ml-2 shrink-0">完成</button>
+        </div>
+
+        <!-- 网站卡片网格区域 (置于上方，iPhone 默认双列 grid-cols-2) -->
+        <main class="mb-10 sm:mb-12">
+            <div id="sitesGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-5">
+                <!-- 卡片内容将由 JavaScript 动态渲染 -->
+            </div>
+
+            <!-- 无搜索结果提示 -->
+            <div id="emptyState" class="hidden text-center py-12">
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-slate-200/70 dark:bg-slate-800 text-slate-400 mb-3">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <h3 class="text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">未找到匹配的网站</h3>
+                <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">尝试更换关键词，或切换下方搜索引擎进行全网搜索</p>
+            </div>
+        </main>
+
+        <!-- 搜索与分类标签区域 (已移至卡片下方，单手拇指操作更友好) -->
+        <section class="max-w-2xl mx-auto pt-4 border-t border-slate-200/60 dark:border-slate-800/60">
+            <!-- 分类过滤标签 -->
+            <div id="categoryTabs" class="flex flex-wrap justify-center gap-1.5 sm:gap-2 mb-5">
+                <button data-category="all" class="category-btn active px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-indigo-600 text-white shadow-sm transition-all">全部 (9)</button>
+                <button data-category="ai" class="category-btn px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-white dark:bg-darkCard text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-darkBorder hover:border-indigo-500/50 transition-all">AI 助手</button>
+                <button data-category="cloud" class="category-btn px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-white dark:bg-darkCard text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-darkBorder hover:border-indigo-500/50 transition-all">云与服务器</button>
+                <button data-category="dev" class="category-btn px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-white dark:bg-darkCard text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-darkBorder hover:border-indigo-500/50 transition-all">开发与工具</button>
+                <button data-category="search" class="category-btn px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-white dark:bg-darkCard text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-darkBorder hover:border-indigo-500/50 transition-all">搜索引擎</button>
+            </div>
+
+            <!-- 搜索框 -->
             <div class="relative group">
                 <div class="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-cyan-500 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-300"></div>
                 <div class="relative flex items-center bg-white dark:bg-darkCard rounded-2xl border border-slate-200 dark:border-darkBorder shadow-lg p-1.5">
                     <!-- 搜索引擎切换下拉 -->
-                    <select id="searchEngine" aria-label="选择搜索引擎" class="bg-slate-100 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-xl px-3 py-2.5 outline-none cursor-pointer border-r border-transparent focus:ring-2 focus:ring-indigo-500 transition">
+                    <select id="searchEngine" aria-label="选择搜索引擎" class="bg-slate-100 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-medium rounded-xl px-2.5 sm:px-3 py-2.5 outline-none cursor-pointer border-r border-transparent focus:ring-2 focus:ring-indigo-500 transition shrink-0">
                         <option value="filter">筛选书签</option>
-                        <option value="google">Google 搜索</option>
-                        <option value="baidu">百度搜索</option>
-                        <option value="github">GitHub 搜索</option>
+                        <option value="google">Google</option>
+                        <option value="baidu">百度</option>
+                        <option value="github">GitHub</option>
                     </select>
 
                     <!-- 输入框 -->
-                    <input type="text" id="searchInput" placeholder="输入关键词筛选网站，或切换引擎直接搜索..." 
-                        class="w-full bg-transparent px-4 py-2.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none text-sm sm:text-base">
+                    <input type="text" id="searchInput" placeholder="输入关键词筛选或搜索..." 
+                        class="w-full min-w-0 bg-transparent px-3 sm:px-4 py-2.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none text-sm sm:text-base">
 
                     <!-- 清除按钮 -->
-                    <button id="clearSearch" class="hidden p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition" title="清除">
+                    <button id="clearSearch" class="hidden p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition shrink-0" title="清除">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
 
                     <!-- 搜索/执行按钮 -->
-                    <button id="searchBtn" class="ml-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-medium text-sm rounded-xl transition-all duration-150 flex items-center gap-1.5 shrink-0 shadow-sm">
+                    <button id="searchBtn" class="ml-1 px-3.5 sm:px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-medium text-xs sm:text-sm rounded-xl transition-all duration-150 flex items-center gap-1.5 shrink-0 shadow-sm">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                         </svg>
@@ -102,101 +148,39 @@
                     </button>
                 </div>
             </div>
-
-            <!-- 分类过滤标签 -->
-            <div id="categoryTabs" class="flex flex-wrap justify-center gap-2 mt-5">
-                <button data-category="all" class="category-btn active px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-indigo-600 text-white shadow-sm transition-all">全部 (8)</button>
-                <button data-category="ai" class="category-btn px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-white dark:bg-darkCard text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-darkBorder hover:border-indigo-500/50 transition-all">AI 助手</button>
-                <button data-category="cloud" class="category-btn px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-white dark:bg-darkCard text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-darkBorder hover:border-indigo-500/50 transition-all">云与服务器</button>
-                <button data-category="dev" class="category-btn px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-white dark:bg-darkCard text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-darkBorder hover:border-indigo-500/50 transition-all">开发与工具</button>
-                <button data-category="search" class="category-btn px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-white dark:bg-darkCard text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-darkBorder hover:border-indigo-500/50 transition-all">搜索引擎</button>
-            </div>
         </section>
-
-        <!-- 网站卡片网格区域 -->
-        <main>
-            <div id="sitesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-                <!-- 卡片内容将由 JavaScript 动态渲染，确保结构清晰且易维护 -->
-            </div>
-
-            <!-- 无搜索结果提示 -->
-            <div id="emptyState" class="hidden text-center py-16">
-                <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-200/70 dark:bg-slate-800 text-slate-400 mb-4">
-                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                </div>
-                <h3 class="text-base font-semibold text-slate-700 dark:text-slate-300">未找到匹配的网站</h3>
-                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">尝试更换关键词，或切换上方搜索引擎进行全网搜索</p>
-            </div>
-        </main>
     </div>
 
-    <!-- 复制成功提示 Toast -->
+    <!-- 复制/操作成功提示 Toast -->
     <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
-        <div class="flex items-center gap-2.5 bg-slate-900 dark:bg-slate-800 text-white px-4 py-3 rounded-xl shadow-xl border border-slate-700/70 text-sm font-medium">
+        <div class="flex items-center gap-2.5 bg-slate-900 dark:bg-slate-800 text-white px-4 py-3 rounded-xl shadow-xl border border-slate-700/70 text-xs sm:text-sm font-medium">
             <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
             <span id="toastMsg">链接已复制到剪贴板</span>
         </div>
     </div>
 
     <!-- 页脚 -->
-    <footer class="relative z-10 text-center py-6 text-xs text-slate-400 dark:text-slate-500 border-t border-slate-200/60 dark:border-slate-800/60">
-        <p>个人专属工作台导航 &bull; 点击卡片新标签页打开，点击右上角图标可复制网址</p>
+    <footer class="relative z-10 text-center py-5 text-xs text-slate-400 dark:text-slate-500 border-t border-slate-200/60 dark:border-slate-800/60 px-4">
+        <p>个人专属工作台导航 &bull; 支持自定义排序与本地缓存</p>
     </footer>
 
     <!-- 交互逻辑脚本 -->
     <script>
         /**
-         * 网站数据配置列表
-         * 包含名称、URL、分类、描述、主题渐变色及专属 SVG 图标
+         * 默认网站数据配置列表 (已加入 Gemini)
          */
-        const SITES_DATA = [
+        const DEFAULT_SITES = [
             {
-                id: 'tools',
-                name: 'VPS Tools',
-                url: 'https://tools.imaginationriver.com/vps',
-                domain: 'tools.imaginationriver.com',
-                category: 'dev',
-                categoryLabel: '工具',
-                desc: 'VPS 常用脚本与网络测试工具集',
-                accent: 'from-blue-500 to-cyan-500',
-                iconBg: 'bg-blue-500/10 text-blue-500',
-                svg: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`
-            },
-            {
-                id: 'cloudflare',
-                name: 'Cloudflare',
-                url: 'https://dash.cloudflare.com/',
-                domain: 'dash.cloudflare.com',
-                category: 'cloud',
-                categoryLabel: '云服务',
-                desc: 'DNS 解析、CDN 加速与边缘安全控制台',
-                accent: 'from-orange-500 to-amber-500',
-                iconBg: 'bg-orange-500/10 text-orange-500',
-                svg: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>`
-            },
-            {
-                id: 'dmit',
-                name: 'DMIT',
-                url: 'https://www.dmit.io/clientarea.php',
-                domain: 'dmit.io',
-                category: 'cloud',
-                categoryLabel: 'VPS',
-                desc: '高性能云服务器与 CN2 GIA 节点客户中心',
-                accent: 'from-sky-500 to-indigo-500',
-                iconBg: 'bg-sky-500/10 text-sky-500',
-                svg: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg>`
-            },
-            {
-                id: 'github',
-                name: 'GitHub',
-                url: 'https://github.com/',
-                domain: 'github.com',
-                category: 'dev',
-                categoryLabel: '代码托管',
-                desc: '全球最大的代码托管与开源协作社区',
-                accent: 'from-slate-600 to-slate-800',
-                iconBg: 'bg-slate-500/15 text-slate-700 dark:text-slate-200',
-                svg: `<svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>`
+                id: 'gemini',
+                name: 'Gemini',
+                url: 'https://gemini.google.com/',
+                domain: 'gemini.google.com',
+                category: 'ai',
+                categoryLabel: 'AI 助手',
+                desc: 'Google 多模态大模型，深度推理与长上下文分析',
+                accent: 'from-blue-500 via-indigo-500 to-purple-500',
+                iconBg: 'bg-indigo-500/10 text-indigo-500',
+                svg: `<svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>`
             },
             {
                 id: 'chatgpt',
@@ -208,7 +192,7 @@
                 desc: 'OpenAI 智能对话、编程辅助与内容创作',
                 accent: 'from-emerald-500 to-teal-500',
                 iconBg: 'bg-emerald-500/10 text-emerald-500',
-                svg: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>`
+                svg: `<svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>`
             },
             {
                 id: 'claude',
@@ -220,7 +204,55 @@
                 desc: 'Anthropic 深度推理、长文本分析与代码专家',
                 accent: 'from-amber-600 to-orange-600',
                 iconBg: 'bg-amber-600/10 text-amber-600 dark:text-amber-500',
-                svg: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>`
+                svg: `<svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>`
+            },
+            {
+                id: 'tools',
+                name: 'VPS Tools',
+                url: 'https://tools.imaginationriver.com/vps',
+                domain: 'tools.imaginationriver.com',
+                category: 'dev',
+                categoryLabel: '工具',
+                desc: 'VPS 常用脚本与网络测试工具集',
+                accent: 'from-blue-500 to-cyan-500',
+                iconBg: 'bg-blue-500/10 text-blue-500',
+                svg: `<svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`
+            },
+            {
+                id: 'cloudflare',
+                name: 'Cloudflare',
+                url: 'https://dash.cloudflare.com/',
+                domain: 'dash.cloudflare.com',
+                category: 'cloud',
+                categoryLabel: '云服务',
+                desc: 'DNS 解析、CDN 加速与边缘安全控制台',
+                accent: 'from-orange-500 to-amber-500',
+                iconBg: 'bg-orange-500/10 text-orange-500',
+                svg: `<svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>`
+            },
+            {
+                id: 'dmit',
+                name: 'DMIT',
+                url: 'https://www.dmit.io/clientarea.php',
+                domain: 'dmit.io',
+                category: 'cloud',
+                categoryLabel: 'VPS',
+                desc: '高性能云服务器与 CN2 GIA 节点客户中心',
+                accent: 'from-sky-500 to-indigo-500',
+                iconBg: 'bg-sky-500/10 text-sky-500',
+                svg: `<svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg>`
+            },
+            {
+                id: 'github',
+                name: 'GitHub',
+                url: 'https://github.com/',
+                domain: 'github.com',
+                category: 'dev',
+                categoryLabel: '代码托管',
+                desc: '全球最大的代码托管与开源协作社区',
+                accent: 'from-slate-600 to-slate-800',
+                iconBg: 'bg-slate-500/15 text-slate-700 dark:text-slate-200',
+                svg: `<svg class="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>`
             },
             {
                 id: 'google',
@@ -232,7 +264,7 @@
                 desc: '全球信息检索 (No Country Redirect 国际版)',
                 accent: 'from-blue-500 via-red-500 to-yellow-500',
                 iconBg: 'bg-blue-500/10 text-blue-500',
-                svg: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>`
+                svg: `<svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>`
             },
             {
                 id: 'baidu',
@@ -244,13 +276,39 @@
                 desc: '中文互联网资讯、百科与本地资源搜索',
                 accent: 'from-blue-600 to-indigo-600',
                 iconBg: 'bg-indigo-500/10 text-indigo-500',
-                svg: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>`
+                svg: `<svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>`
             }
         ];
 
+        // 从 localStorage 加载自定义排序
+        function loadOrderedSites() {
+            try {
+                const savedOrder = JSON.parse(localStorage.getItem('quickhub_site_order'));
+                if (Array.isArray(savedOrder) && savedOrder.length > 0) {
+                    const siteMap = new Map(DEFAULT_SITES.map(s => [s.id, s]));
+                    const ordered = [];
+                    savedOrder.forEach(id => {
+                        if (siteMap.has(id)) {
+                            ordered.push(siteMap.get(id));
+                            siteMap.delete(id);
+                        }
+                    });
+                    // 把新增的默认站点追加到末尾
+                    siteMap.forEach(site => ordered.push(site));
+                    return ordered;
+                }
+            } catch (e) {
+                console.warn('读取排序缓存失败:', e);
+            }
+            return [...DEFAULT_SITES];
+        }
+
         // 状态管理
+        let sitesList = loadOrderedSites();
         let currentCategory = 'all';
         let searchQuery = '';
+        let isSortMode = false;
+        let draggedId = null;
 
         // DOM 元素引用
         const sitesGrid = document.getElementById('sitesGrid');
@@ -261,13 +319,79 @@
         const clearSearch = document.getElementById('clearSearch');
         const categoryBtns = document.querySelectorAll('.category-btn');
         const themeToggle = document.getElementById('themeToggle');
+        const sortToggleBtn = document.getElementById('sortToggleBtn');
+        const sortBtnText = document.getElementById('sortBtnText');
+        const resetOrderBtn = document.getElementById('resetOrderBtn');
+        const sortBanner = document.getElementById('sortBanner');
+
+        /**
+         * 保存当前顺序到本地存储
+         */
+        function saveOrder() {
+            const ids = sitesList.map(s => s.id);
+            localStorage.setItem('quickhub_site_order', JSON.stringify(ids));
+        }
+
+        /**
+         * 移动卡片位置 (支持手机端左右按钮及拖拽)
+         */
+        function moveSite(id, direction) {
+            const index = sitesList.findIndex(s => s.id === id);
+            if (index === -1) return;
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= sitesList.length) return;
+
+            const temp = sitesList[index];
+            sitesList[index] = sitesList[targetIndex];
+            sitesList[targetIndex] = temp;
+
+            saveOrder();
+            renderCards();
+        }
+
+        /**
+         * 切换排序模式
+         */
+        function toggleSortMode() {
+            isSortMode = !isSortMode;
+            if (isSortMode) {
+                // 排序模式下自动切回全部并清空筛选，避免部分隐藏导致顺序混乱
+                currentCategory = 'all';
+                searchQuery = '';
+                searchInput.value = '';
+                clearSearch.classList.add('hidden');
+                updateCategoryButtonsUI('all');
+
+                sortBtnText.textContent = '完成排序';
+                sortToggleBtn.classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-50', 'dark:bg-indigo-950/50');
+                resetOrderBtn.classList.remove('hidden');
+                sortBanner.classList.remove('hidden');
+            } else {
+                sortBtnText.textContent = '调整顺序';
+                sortToggleBtn.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50', 'dark:bg-indigo-950/50');
+                resetOrderBtn.classList.add('hidden');
+                sortBanner.classList.add('hidden');
+                showToast('卡片顺序已保存');
+            }
+            renderCards();
+        }
+
+        /**
+         * 重置为默认顺序
+         */
+        function resetSiteOrder() {
+            sitesList = [...DEFAULT_SITES];
+            localStorage.removeItem('quickhub_site_order');
+            renderCards();
+            showToast('已恢复默认排序');
+        }
 
         /**
          * 渲染网站卡片网格
          */
         function renderCards() {
             try {
-                const filtered = SITES_DATA.filter(site => {
+                const filtered = sitesList.filter(site => {
                     const matchCat = currentCategory === 'all' || site.category === currentCategory;
                     const q = searchQuery.toLowerCase().trim();
                     const matchText = !q || 
@@ -285,58 +409,118 @@
                 }
 
                 emptyState.classList.add('hidden');
-                sitesGrid.innerHTML = filtered.map(site => `
-                    <div class="group relative bg-white dark:bg-darkCard rounded-2xl border border-slate-200/80 dark:border-darkBorder p-5 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden">
+                sitesGrid.innerHTML = filtered.map((site, idx) => {
+                    const isFirst = idx === 0;
+                    const isLast = idx === filtered.length - 1;
+
+                    return `
+                    <div 
+                        data-id="${site.id}"
+                        draggable="${isSortMode}"
+                        ondragstart="handleDragStart(event, '${site.id}')"
+                        ondragover="handleDragOver(event)"
+                        ondrop="handleDrop(event, '${site.id}')"
+                        ondragend="handleDragEnd(event)"
+                        class="site-card group relative bg-white dark:bg-darkCard rounded-2xl border ${isSortMode ? 'border-dashed border-indigo-400 dark:border-indigo-500/70 cursor-move' : 'border-slate-200/80 dark:border-darkBorder hover:-translate-y-1'} p-3.5 sm:p-5 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden select-none">
+                        
                         <!-- 顶部悬停彩条 -->
-                        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${site.accent} opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${site.accent} ${isSortMode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-300"></div>
                         
                         <div>
-                            <!-- 头部：图标 + 复制链接按钮 -->
-                            <div class="flex items-start justify-between gap-3 mb-4">
-                                <a href="${site.url}" target="_blank" rel="noopener noreferrer" class="w-12 h-12 rounded-xl ${site.iconBg} flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-200">
+                            <!-- 头部：图标 + 右上角操作区 -->
+                            <div class="flex items-start justify-between gap-2 mb-3 sm:mb-4">
+                                <a href="${isSortMode ? 'javascript:void(0)' : site.url}" ${isSortMode ? '' : 'target="_blank" rel="noopener noreferrer"'} class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl ${site.iconBg} flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-200">
                                     ${site.svg}
                                 </a>
                                 
-                                <div class="flex items-center gap-1.5">
-                                    <span class="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400">
+                                ${isSortMode ? `
+                                <!-- 排序控制按钮 (iPhone 单手点按极度友好) -->
+                                <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                                    <button onclick="moveSite('${site.id}', -1)" ${isFirst ? 'disabled' : ''} title="向前移动" class="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 disabled:opacity-30 transition">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                                    </button>
+                                    <button onclick="moveSite('${site.id}', 1)" ${isLast ? 'disabled' : ''} title="向后移动" class="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 disabled:opacity-30 transition">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                    </button>
+                                </div>
+                                ` : `
+                                <div class="flex items-center gap-1">
+                                    <span class="hidden sm:inline-block px-2 py-0.5 rounded-lg text-[11px] font-medium bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400">
                                         ${site.categoryLabel}
                                     </span>
-                                    <button onclick="copyUrl('${site.url}', '${site.name}')" title="复制网址" class="p-2 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                                    <button onclick="copyUrl('${site.url}', '${site.name}')" title="复制网址" class="p-1.5 sm:p-2 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                                     </button>
                                 </div>
+                                `}
                             </div>
 
-                            <!-- 标题与描述 (整块可点击跳转) -->
-                            <a href="${site.url}" target="_blank" rel="noopener noreferrer" class="block focus:outline-none">
-                                <div class="flex items-center gap-1.5">
-                                    <h2 class="text-lg font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors">
+                            <!-- 标题与描述 -->
+                            <a href="${isSortMode ? 'javascript:void(0)' : site.url}" ${isSortMode ? '' : 'target="_blank" rel="noopener noreferrer"'} class="block focus:outline-none">
+                                <div class="flex items-center gap-1">
+                                    <h2 class="text-sm sm:text-lg font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors truncate">
                                         ${site.name}
                                     </h2>
-                                    <svg class="w-4 h-4 text-slate-400 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="hidden sm:block w-4 h-4 text-slate-400 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                                     </svg>
                                 </div>
-                                <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-2 leading-relaxed">
+                                <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                                     ${site.desc}
                                 </p>
                             </a>
                         </div>
 
                         <!-- 底部域名展示 -->
-                        <a href="${site.url}" target="_blank" rel="noopener noreferrer" class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
+                        <a href="${isSortMode ? 'javascript:void(0)' : site.url}" ${isSortMode ? '' : 'target="_blank" rel="noopener noreferrer"'} class="mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] sm:text-xs text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
                             <span class="truncate font-mono">${site.domain}</span>
-                            <span class="font-medium text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity">访问 &rarr;</span>
+                            <span class="hidden sm:inline font-medium text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1">访问 &rarr;</span>
                         </a>
                     </div>
-                `).join('');
+                `}).join('');
             } catch (err) {
                 console.error('渲染卡片时出错:', err);
             }
         }
 
         /**
-         * 复制网址到剪贴板并显示 Toast 提示 (兼容 iframe 环境)
+         * HTML5 拖拽排序事件处理
+         */
+        function handleDragStart(e, id) {
+            if (!isSortMode) return;
+            draggedId = id;
+            e.dataTransfer.effectAllowed = 'move';
+            e.currentTarget.classList.add('opacity-50', 'scale-95');
+        }
+
+        function handleDragOver(e) {
+            if (!isSortMode) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleDrop(e, targetId) {
+            if (!isSortMode) return;
+            e.preventDefault();
+            if (!draggedId || draggedId === targetId) return;
+
+            const fromIdx = sitesList.findIndex(s => s.id === draggedId);
+            const toIdx = sitesList.findIndex(s => s.id === targetId);
+            if (fromIdx !== -1 && toIdx !== -1) {
+                const [movedItem] = sitesList.splice(fromIdx, 1);
+                sitesList.splice(toIdx, 0, movedItem);
+                saveOrder();
+                renderCards();
+            }
+        }
+
+        function handleDragEnd(e) {
+            e.currentTarget.classList.remove('opacity-50', 'scale-95');
+            draggedId = null;
+        }
+
+        /**
+         * 复制网址到剪贴板并显示 Toast 提示
          */
         function copyUrl(url, name) {
             try {
@@ -403,6 +587,21 @@
         }
 
         /**
+         * 更新分类标签高亮样式
+         */
+        function updateCategoryButtonsUI(activeCat) {
+            categoryBtns.forEach(b => {
+                if (b.dataset.category === activeCat) {
+                    b.classList.remove('bg-white', 'dark:bg-darkCard', 'text-slate-600', 'dark:text-slate-300', 'border', 'border-slate-200', 'dark:border-darkBorder');
+                    b.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+                } else {
+                    b.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+                    b.classList.add('bg-white', 'dark:bg-darkCard', 'text-slate-600', 'dark:text-slate-300', 'border', 'border-slate-200', 'dark:border-darkBorder');
+                }
+            });
+        }
+
+        /**
          * 更新实时时间与动态问候语
          */
         function updateClock() {
@@ -425,10 +624,13 @@
          * 初始化事件监听
          */
         function init() {
-            // 渲染初始卡片
             renderCards();
             updateClock();
             setInterval(updateClock, 1000);
+
+            // 排序按钮监听
+            sortToggleBtn.addEventListener('click', toggleSortMode);
+            resetOrderBtn.addEventListener('click', resetSiteOrder);
 
             // 输入框实时响应
             searchInput.addEventListener('input', (e) => {
@@ -458,7 +660,7 @@
                 } else {
                     const engineName = searchEngine.options[searchEngine.selectedIndex].text;
                     searchInput.placeholder = `在 ${engineName} 中输入内容并按回车...`;
-                    searchQuery = ''; // 外部搜索时恢复展示全部书签
+                    searchQuery = '';
                 }
                 renderCards();
                 searchInput.focus();
@@ -476,14 +678,11 @@
             // 分类筛选按钮
             categoryBtns.forEach(btn => {
                 btn.addEventListener('click', () => {
-                    categoryBtns.forEach(b => {
-                        b.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
-                        b.classList.add('bg-white', 'dark:bg-darkCard', 'text-slate-600', 'dark:text-slate-300', 'border', 'border-slate-200', 'dark:border-darkBorder');
-                    });
-                    btn.classList.remove('bg-white', 'dark:bg-darkCard', 'text-slate-600', 'dark:text-slate-300', 'border', 'border-slate-200', 'dark:border-darkBorder');
-                    btn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
-
+                    if (isSortMode) {
+                        toggleSortMode();
+                    }
                     currentCategory = btn.dataset.category;
+                    updateCategoryButtonsUI(currentCategory);
                     renderCards();
                 });
             });
@@ -515,3 +714,4 @@
 </body>
 </html>
 
+```
