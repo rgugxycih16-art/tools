@@ -52,97 +52,14 @@
             </p>
         </header>
 
-        <!-- 核心搜索面板 -->
-        <section class="bg-white dark:bg-slate-900 rounded-2xl shadow-md border border-slate-200/80 dark:border-slate-800 p-5 sm:p-8 mb-10">
-            <form id="search-form" onsubmit="handleSearch(event)" class="space-y-5">
-                
-                <!-- 搜索输入框与主按钮 -->
-                <div class="flex flex-col sm:flex-row gap-3">
-                    <div class="relative flex-grow">
-                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                            <svg class="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                            </svg>
-                        </div>
-                        <input 
-                            type="text" 
-                            id="search-input" 
-                            placeholder="输入关键词，例如：搬瓦工、甲骨文、黑五、Cloudflare..." 
-                            class="w-full pl-11 pr-10 py-3.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-base"
-                            autocomplete="off"
-                        >
-                        <!-- 清空按钮 -->
-                        <button type="button" id="clear-btn" onclick="clearInput()" class="hidden absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                        </button>
-                    </div>
-                    
-                    <button 
-                        type="submit" 
-                        class="px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center space-x-2 shrink-0 cursor-pointer"
-                    >
-                        <span>检索所选站点</span>
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-                        </svg>
-                    </button>
-                </div>
-
-                <!-- 检索配置选项：站点多选 & 搜索引擎模式切换 -->
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    
-                    <!-- 目标站点勾选 -->
-                    <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-1">检索范围：</span>
-                        
-                        <label class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-700/70 cursor-pointer select-none transition-colors">
-                            <input type="checkbox" name="site" value="nodeseek" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
-                            <span class="text-sm font-medium">NodeSeek</span>
-                        </label>
-                        <label class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-700/70 cursor-pointer select-none transition-colors">
-                            <input type="checkbox" name="site" value="v2ex" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
-                            <span class="text-sm font-medium">V2EX</span>
-                        </label>
-
-                        <label class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-700/70 cursor-pointer select-none transition-colors">
-                            <input type="checkbox" name="site" value="linuxdo" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
-                            <span class="text-sm font-medium">Linux.do</span>
-                        </label>
-                    </div>
-
-                    <!-- 检索方式切换 -->
-                    <div class="flex items-center space-x-2">
-                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">检索方式：</span>
-                        <select id="search-engine" class="text-sm bg-slate-100 dark:bg-slate-800 border-0 rounded-lg px-3 py-1.5 text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-indigo-500 cursor-pointer">
-                            <option value="google">Google 聚合检索 (推荐)</option>
-                            <option value="bing">Bing 聚合检索</option>
-                            <option value="native">直接调用各站内置搜索 (多标签)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- 快捷标签 -->
-                <div class="flex flex-wrap items-center gap-2 pt-1">
-                    <span class="text-xs text-slate-400">热门关键词：</span>
-                    <button type="button" onclick="quickKeyword('VPS 优惠')" class="text-xs px-2.5 py-1 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition">VPS 优惠</button>
-                    <button type="button" onclick="quickKeyword('甲骨文')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">甲骨文</button>
-                    <button type="button" onclick="quickKeyword('搬瓦工')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">搬瓦工</button>
-                    <button type="button" onclick="quickKeyword('CF 优选')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">CF 优选</button>
-                    <button type="button" onclick="quickKeyword('白嫖')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">白嫖</button>
-                </div>
-            </form>
-        </section>
-
         <!-- 社区直达与单站精准检索卡片网格 -->
-        <section>
+        <section class="mb-10">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                     <span>社区直达与单站检索</span>
                     <span class="text-xs font-normal px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">3 个站点</span>
                 </h2>
-                <span class="text-xs text-slate-400 hidden sm:inline">输入关键词后点击卡片上的“搜本站”可直接精准检索</span>
+                <span class="text-xs text-slate-400 hidden sm:inline">在下方输入关键词后点击“搜本站”可直接精准检索</span>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
@@ -256,6 +173,89 @@
                 </div>
 
             </div>
+        </section>
+
+        <!-- 核心搜索面板 -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl shadow-md border border-slate-200/80 dark:border-slate-800 p-5 sm:p-8">
+            <form id="search-form" onsubmit="handleSearch(event)" class="space-y-5">
+                
+                <!-- 搜索输入框与主按钮 -->
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <div class="relative flex-grow">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </div>
+                        <input 
+                            type="text" 
+                            id="search-input" 
+                            placeholder="输入关键词，例如：搬瓦工、甲骨文、黑五、Cloudflare..." 
+                            class="w-full pl-11 pr-10 py-3.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-base"
+                            autocomplete="off"
+                        >
+                        <!-- 清空按钮 -->
+                        <button type="button" id="clear-btn" onclick="clearInput()" class="hidden absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <button 
+                        type="submit" 
+                        class="px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center space-x-2 shrink-0 cursor-pointer"
+                    >
+                        <span>检索所选站点</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- 检索配置选项：站点多选 & 搜索引擎模式切换 -->
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    
+                    <!-- 目标站点勾选 -->
+                    <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-1">检索范围：</span>
+                        
+                        <label class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-700/70 cursor-pointer select-none transition-colors">
+                            <input type="checkbox" name="site" value="nodeseek" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span class="text-sm font-medium">NodeSeek</span>
+                        </label>
+                        <label class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-700/70 cursor-pointer select-none transition-colors">
+                            <input type="checkbox" name="site" value="v2ex" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span class="text-sm font-medium">V2EX</span>
+                        </label>
+
+                        <label class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-700/70 cursor-pointer select-none transition-colors">
+                            <input type="checkbox" name="site" value="linuxdo" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span class="text-sm font-medium">Linux.do</span>
+                        </label>
+                    </div>
+
+                    <!-- 检索方式切换 -->
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">检索方式：</span>
+                        <select id="search-engine" class="text-sm bg-slate-100 dark:bg-slate-800 border-0 rounded-lg px-3 py-1.5 text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+                            <option value="google">Google 聚合检索 (推荐)</option>
+                            <option value="bing">Bing 聚合检索</option>
+                            <option value="native">直接调用各站内置搜索 (多标签)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 快捷标签 -->
+                <div class="flex flex-wrap items-center gap-2 pt-1">
+                    <span class="text-xs text-slate-400">热门关键词：</span>
+                    <button type="button" onclick="quickKeyword('VPS 优惠')" class="text-xs px-2.5 py-1 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition">VPS 优惠</button>
+                    <button type="button" onclick="quickKeyword('甲骨文')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">甲骨文</button>
+                    <button type="button" onclick="quickKeyword('搬瓦工')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">搬瓦工</button>
+                    <button type="button" onclick="quickKeyword('CF 优选')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">CF 优选</button>
+                    <button type="button" onclick="quickKeyword('白嫖')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">白嫖</button>
+                </div>
+            </form>
         </section>
 
         <!-- 使用说明小贴士 -->
@@ -406,7 +406,7 @@
             if (!site) return;
 
             if (!keyword) {
-                showToast(`请在上方输入框输入关键词后再检索 ${site.name}`);
+                showToast(`请在下方输入框输入关键词后再检索 ${site.name}`);
                 searchInput.focus();
                 return;
             }
