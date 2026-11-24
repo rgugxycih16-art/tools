@@ -173,12 +173,34 @@
             padding: 0 2px;
             border-radius: 3px;
         }
+
+        /* 隐藏横向分类栏滚动条 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
     </style>
 </head>
 <body class="bg-claude-bg dark:bg-claude-darkBg text-claude-text dark:text-claude-darkText font-sans antialiased selection:bg-claude-accent/20 overflow-hidden">
 
     <!-- 顶部/全局提示框 Toast -->
     <div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none w-[90%] max-w-sm"></div>
+
+    <!-- 通用交互弹窗（用于归类、新建分类、删除确认与单条管理，兼容移动端底部弹出体验） -->
+    <div id="customModalOverlay" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs hidden items-end sm:items-center justify-center p-0 sm:p-4">
+        <div id="customModalBox" class="bg-claude-card dark:bg-claude-darkCard border-t sm:border border-claude-border dark:border-claude-darkBorder rounded-t-3xl sm:rounded-2xl w-full max-w-md p-5 shadow-2xl max-h-[85vh] flex flex-col">
+            <div class="flex items-center justify-between gap-2 pb-3 border-b border-claude-border dark:border-claude-darkBorder">
+                <h3 id="modalTitle" class="font-semibold text-base truncate">管理对话</h3>
+                <button id="closeModalBtn" class="w-8 h-8 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-claude-muted flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="modalBody" class="py-4 overflow-y-auto space-y-4 text-sm"></div>
+        </div>
+    </div>
 
     <!-- 大文件加载进度遮罩 -->
     <div id="loadingOverlay" class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4">
@@ -221,7 +243,7 @@
             </div>
 
             <!-- 搜索与筛选区 -->
-            <div id="searchArea" class="p-3 border-b border-claude-border dark:border-claude-darkBorder space-y-2 hidden">
+            <div id="searchArea" class="p-3 border-b border-claude-border dark:border-claude-darkBorder space-y-2.5 hidden">
                 <div class="relative">
                     <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-xs text-claude-muted dark:text-claude-darkMuted"></i>
                     <input
@@ -235,18 +257,32 @@
                     </button>
                 </div>
 
-                <div class="flex items-center justify-between text-xs gap-2">
+                <!-- 分类横向标签栏 -->
+                <div class="flex items-center gap-1.5">
+                    <div id="categoryTabs" class="flex-1 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5"></div>
+                    <button id="manageCategoriesBtn" title="管理分类标签" class="flex-shrink-0 px-2 py-1 rounded-lg bg-claude-card dark:bg-claude-darkCard border border-claude-border dark:border-claude-darkBorder text-xs text-claude-muted dark:text-claude-darkMuted hover:text-claude-accent transition">
+                        <i class="fa-solid fa-folder-plus"></i>
+                    </button>
+                </div>
+
+                <div class="flex items-center justify-between text-xs gap-2 pt-0.5">
                     <label class="inline-flex items-center gap-1.5 cursor-pointer text-claude-muted dark:text-claude-darkMuted select-none">
                         <input id="fullTextSearchToggle" type="checkbox" checked class="rounded accent-claude-accent w-3.5 h-3.5" />
-                        <span>包含聊天全文搜索</span>
+                        <span>全文搜索</span>
                     </label>
 
-                    <select id="sortSelect" class="bg-transparent text-claude-muted dark:text-claude-darkMuted focus:outline-none cursor-pointer text-xs py-0.5">
-                        <option value="updated_desc">最近更新</option>
-                        <option value="created_desc">最新创建</option>
-                        <option value="created_asc">最早创建</option>
-                        <option value="messages_desc">消息最多</option>
-                    </select>
+                    <div class="flex items-center gap-1 text-claude-muted dark:text-claude-darkMuted">
+                        <i class="fa-solid fa-arrow-down-wide-short text-[11px]"></i>
+                        <select id="sortSelect" class="bg-transparent text-claude-muted dark:text-claude-darkMuted focus:outline-none cursor-pointer text-xs py-0.5">
+                            <option value="updated_desc">最近更新</option>
+                            <option value="updated_asc">最早更新</option>
+                            <option value="created_desc">最新创建</option>
+                            <option value="created_asc">最早创建</option>
+                            <option value="messages_desc">消息最多</option>
+                            <option value="messages_asc">消息最少</option>
+                            <option value="title_asc">标题名称 (A-Z)</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -313,7 +349,17 @@
                     </div>
 
                     <!-- 右上角工具按钮 -->
-                    <div class="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
+                    <div class="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+                        <button id="pinChatBtn" title="置顶/取消置顶" class="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-claude-muted dark:text-claude-darkMuted hover:text-claude-text dark:hover:text-claude-darkText transition">
+                            <i class="fa-solid fa-thumbtack text-sm"></i>
+                        </button>
+                        <button id="categorizeChatBtn" title="设置分类" class="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-claude-muted dark:text-claude-darkMuted hover:text-claude-text dark:hover:text-claude-darkText transition">
+                            <i class="fa-solid fa-tag text-sm"></i>
+                        </button>
+                        <button id="deleteChatBtn" title="删除对话" class="p-2 rounded-xl hover:bg-red-500/10 text-claude-muted dark:text-claude-darkMuted hover:text-red-500 transition">
+                            <i class="fa-regular fa-trash-can text-sm"></i>
+                        </button>
+                        <span class="w-px h-4 bg-claude-border dark:bg-claude-darkBorder mx-0.5"></span>
                         <button id="inChatSearchBtn" title="在当前对话中查找" class="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-claude-muted dark:text-claude-darkMuted hover:text-claude-text dark:hover:text-claude-darkText transition">
                             <i class="fa-solid fa-magnifying-glass text-sm"></i>
                         </button>
@@ -322,7 +368,7 @@
                         </button>
                         <button id="exportMdBtn" title="下载当前对话 (.md)" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-claude-accent/10 hover:bg-claude-accent/20 text-claude-accent text-xs font-medium transition">
                             <i class="fa-solid fa-download"></i>
-                            <span class="hidden sm:inline">导出 MD</span>
+                            <span class="hidden lg:inline">导出 MD</span>
                         </button>
                     </div>
                 </header>
@@ -360,6 +406,43 @@
 
     <script>
         // =========================================================================
+        // 本地持久化归类/置顶/回收站数据管理 (基于对话 UUID 自动记住整理状态)
+        // =========================================================================
+        const ORG_STORAGE_KEY = 'claude_viewer_org_v1';
+
+        function loadOrgData() {
+            const fallback = {
+                pinned: {},          // { [uuid]: pinnedTimestamp }
+                deleted: {},         // { [uuid]: deletedTimestamp } (回收站)
+                hardDeleted: {},     // { [uuid]: true } (彻底隐藏删除)
+                categories: ['工作', '学习', '编程', '生活'],
+                convCategory: {}     // { [uuid]: categoryName }
+            };
+            try {
+                const raw = localStorage.getItem(ORG_STORAGE_KEY);
+                if (!raw) return fallback;
+                const parsed = JSON.parse(raw);
+                return {
+                    pinned: parsed.pinned || {},
+                    deleted: parsed.deleted || {},
+                    hardDeleted: parsed.hardDeleted || {},
+                    categories: Array.isArray(parsed.categories) ? parsed.categories : fallback.categories,
+                    convCategory: parsed.convCategory || {}
+                };
+            } catch {
+                return fallback;
+            }
+        }
+
+        function saveOrgData() {
+            try {
+                localStorage.setItem(ORG_STORAGE_KEY, JSON.stringify(state.org));
+            } catch (e) {
+                console.warn('localStorage 保存失败:', e);
+            }
+        }
+
+        // =========================================================================
         // 全局状态管理（针对 95MB+ 大型 JSON 进行按需分页与低内存索引优化）
         // =========================================================================
         const state = {
@@ -368,8 +451,57 @@
             renderedCount: 0,         // 左侧列表当前已渲染的条数（分页懒加载防卡顿）
             pageSize: 60,             // 每次滚动加载条数
             activeUuid: null,         // 当前选中的对话 UUID
+            mobileView: 'list',       // 记录移动端当前所处视图：'list' | 'chat'
             searchQuery: '',          // 全局搜索词
-            inChatQuery: ''           // 当前对话内筛选词
+            inChatQuery: '',          // 当前对话内筛选词
+            activeCategory: '__all__',// '__all__' | '__pinned__' | '__uncategorized__' | '__trash__' | 具体分类名
+            org: loadOrgData()        // 置顶、分类与回收站状态
+        };
+
+        // DOM 元素引用
+        const els = {
+            fileInput: document.getElementById('fileInput'),
+            loadingOverlay: document.getElementById('loadingOverlay'),
+            loadingTitle: document.getElementById('loadingTitle'),
+            loadingSubtext: document.getElementById('loadingSubtext'),
+            sidebarPanel: document.getElementById('sidebarPanel'),
+            mainPanel: document.getElementById('mainPanel'),
+            statsBadge: document.getElementById('statsBadge'),
+            searchArea: document.getElementById('searchArea'),
+            searchInput: document.getElementById('searchInput'),
+            clearSearchBtn: document.getElementById('clearSearchBtn'),
+            categoryTabs: document.getElementById('categoryTabs'),
+            manageCategoriesBtn: document.getElementById('manageCategoriesBtn'),
+            fullTextSearchToggle: document.getElementById('fullTextSearchToggle'),
+            sortSelect: document.getElementById('sortSelect'),
+            conversationList: document.getElementById('conversationList'),
+            sidebarEmptyHint: document.getElementById('sidebarEmptyHint'),
+            welcomeDropzone: document.getElementById('welcomeDropzone'),
+            dropArea: document.getElementById('dropArea'),
+            chatContainer: document.getElementById('chatContainer'),
+            backToListBtn: document.getElementById('backToListBtn'),
+            activeChatTitle: document.getElementById('activeChatTitle'),
+            activeChatMeta: document.getElementById('activeChatMeta'),
+            pinChatBtn: document.getElementById('pinChatBtn'),
+            categorizeChatBtn: document.getElementById('categorizeChatBtn'),
+            deleteChatBtn: document.getElementById('deleteChatBtn'),
+            messagesScrollArea: document.getElementById('messagesScrollArea'),
+            messagesList: document.getElementById('messagesList'),
+            themeToggleBtn: document.getElementById('themeToggleBtn'),
+            inChatSearchBtn: document.getElementById('inChatSearchBtn'),
+            inChatSearchBar: document.getElementById('inChatSearchBar'),
+            inChatSearchInput: document.getElementById('inChatSearchInput'),
+            inChatMatchCount: document.getElementById('inChatMatchCount'),
+            closeInChatSearchBtn: document.getElementById('closeInChatSearchBtn'),
+            copyChatBtn: document.getElementById('copyChatBtn'),
+            exportMdBtn: document.getElementById('exportMdBtn'),
+            scrollTopBtn: document.getElementById('scrollTopBtn'),
+            scrollBottomBtn: document.getElementById('scrollBottomBtn'),
+            toastContainer: document.getElementById('toastContainer'),
+            customModalOverlay: document.getElementById('customModalOverlay'),
+            modalTitle: document.getElementById('modalTitle'),
+            modalBody: document.getElementById('modalBody'),
+            closeModalBtn: document.getElementById('closeModalBtn')
         };
 
         // DOM 元素引用
@@ -705,10 +837,11 @@
             }
 
             state.allConversations = cleaned;
-            els.statsBadge.textContent = `共 ${cleaned.length} 段对话 · ${totalMessages.toLocaleString()} 条消息`;
+            updateStatsBadge();
             els.searchArea.classList.remove('hidden');
             els.sidebarEmptyHint.classList.add('hidden');
 
+            renderCategoryTabs();
             applyFilterAndSort();
 
             // 桌面端默认打开第一条对话；手机端停留在列表页方便用户自行点选
@@ -719,20 +852,399 @@
             }
         }
 
+        function updateStatsBadge() {
+            const visibleConvs = state.allConversations.filter(
+                c => !state.org.deleted[c.uuid] && !state.org.hardDeleted[c.uuid]
+            );
+            let totalMsgs = 0;
+            for (const c of visibleConvs) totalMsgs += c.msgCount;
+            els.statsBadge.textContent = `共 ${visibleConvs.length} 段对话 · ${totalMsgs.toLocaleString()} 条消息`;
+        }
+
         // =========================================================================
-        // 列表搜索、排序与虚拟分页渲染
+        // 分类标签栏、置顶、归类与删除操作逻辑
+        // =========================================================================
+        function renderCategoryTabs() {
+            if (!els.categoryTabs) return;
+            els.categoryTabs.innerHTML = '';
+
+            const activeConvs = state.allConversations.filter(c => !state.org.hardDeleted[c.uuid]);
+            const trashCount = activeConvs.filter(c => !!state.org.deleted[c.uuid]).length;
+            const normalConvs = activeConvs.filter(c => !state.org.deleted[c.uuid]);
+            const pinnedCount = normalConvs.filter(c => !!state.org.pinned[c.uuid]).length;
+
+            const tabs = [
+                { id: '__all__', label: `全部 (${normalConvs.length})`, icon: '' },
+                { id: '__pinned__', label: `置顶 (${pinnedCount})`, icon: 'fa-thumbtack' }
+            ];
+
+            for (const cat of state.org.categories) {
+                const count = normalConvs.filter(c => state.org.convCategory[c.uuid] === cat).length;
+                tabs.push({ id: cat, label: `${cat} (${count})`, icon: 'fa-folder' });
+            }
+
+            const uncatCount = normalConvs.filter(c => !state.org.convCategory[c.uuid]).length;
+            tabs.push({ id: '__uncategorized__', label: `未归类 (${uncatCount})`, icon: '' });
+
+            if (trashCount > 0 || state.activeCategory === '__trash__') {
+                tabs.push({ id: '__trash__', label: `回收站 (${trashCount})`, icon: 'fa-trash-can' });
+            }
+
+            for (const t of tabs) {
+                const btn = document.createElement('button');
+                const isSelected = state.activeCategory === t.id;
+                btn.className = `flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition ${
+                    isSelected
+                        ? 'bg-claude-accent text-white shadow-xs'
+                        : 'bg-claude-card dark:bg-claude-darkCard text-claude-muted dark:text-claude-darkMuted border border-claude-border dark:border-claude-darkBorder hover:text-claude-text dark:hover:text-claude-darkText'
+                }`;
+                btn.innerHTML = `${t.icon ? `<i class="fa-solid ${t.icon} text-[10px]"></i>` : ''}<span>${escapeHtml(t.label)}</span>`;
+                btn.addEventListener('click', () => {
+                    state.activeCategory = t.id;
+                    renderCategoryTabs();
+                    applyFilterAndSort();
+                });
+                els.categoryTabs.appendChild(btn);
+            }
+        }
+
+        function openModal(title, renderContentFn) {
+            els.modalTitle.textContent = title;
+            els.modalBody.innerHTML = '';
+            renderContentFn(els.modalBody);
+            els.customModalOverlay.classList.remove('hidden');
+            els.customModalOverlay.classList.add('flex');
+        }
+
+        function closeModal() {
+            els.customModalOverlay.classList.add('hidden');
+            els.customModalOverlay.classList.remove('flex');
+        }
+
+        function togglePinConversation(uuid) {
+            if (!uuid) return;
+            if (state.org.pinned[uuid]) {
+                delete state.org.pinned[uuid];
+                showToast('已取消置顶');
+            } else {
+                state.org.pinned[uuid] = Date.now();
+                showToast('已置顶该对话', 'success');
+            }
+            saveOrgData();
+            syncActiveChatHeaderState();
+            renderCategoryTabs();
+            applyFilterAndSort();
+        }
+
+        function setConversationCategory(uuid, categoryName) {
+            if (!uuid) return;
+            if (!categoryName) {
+                delete state.org.convCategory[uuid];
+                showToast('已移除分类标签');
+            } else {
+                state.org.convCategory[uuid] = categoryName;
+                showToast(`已归类至「${categoryName}」`, 'success');
+            }
+            saveOrgData();
+            syncActiveChatHeaderState();
+            renderCategoryTabs();
+            applyFilterAndSort();
+        }
+
+        function moveToTrash(uuid) {
+            if (!uuid) return;
+            state.org.deleted[uuid] = Date.now();
+            delete state.org.pinned[uuid];
+            saveOrgData();
+            updateStatsBadge();
+            renderCategoryTabs();
+            applyFilterAndSort();
+            handlePostDeleteNavigation(uuid);
+            showToast('对话已移入回收站，可在回收站分类中恢复');
+        }
+
+        function restoreFromTrash(uuid) {
+            if (!uuid) return;
+            delete state.org.deleted[uuid];
+            saveOrgData();
+            updateStatsBadge();
+            renderCategoryTabs();
+            applyFilterAndSort();
+            syncActiveChatHeaderState();
+            showToast('已从回收站恢复对话', 'success');
+        }
+
+        function permanentlyDelete(uuid) {
+            if (!uuid) return;
+            state.org.hardDeleted[uuid] = true;
+            delete state.org.deleted[uuid];
+            delete state.org.pinned[uuid];
+            saveOrgData();
+            updateStatsBadge();
+            if (state.activeCategory === '__trash__') {
+                const remainTrash = state.allConversations.some(c => !state.org.hardDeleted[c.uuid] && state.org.deleted[c.uuid]);
+                if (!remainTrash) state.activeCategory = '__all__';
+            }
+            renderCategoryTabs();
+            applyFilterAndSort();
+            handlePostDeleteNavigation(uuid);
+            showToast('已彻底删除该对话');
+        }
+
+        function handlePostDeleteNavigation(deletedUuid) {
+            if (state.activeUuid !== deletedUuid) return;
+            if (window.innerWidth < 768) {
+                state.activeUuid = null;
+                els.chatContainer.classList.add('hidden');
+                els.welcomeDropzone.classList.remove('hidden');
+                showMobileListView();
+            } else if (state.filteredConversations.length > 0) {
+                selectConversation(state.filteredConversations[0].uuid);
+            } else {
+                state.activeUuid = null;
+                els.chatContainer.classList.add('hidden');
+                els.welcomeDropzone.classList.remove('hidden');
+            }
+        }
+
+        // 打开单条对话管理菜单（支持置顶、选择/新建分类、删除/恢复）
+        function openConversationActionModal(uuid) {
+            const conv = state.allConversations.find(c => c.uuid === uuid);
+            if (!conv) return;
+            const isPinned = !!state.org.pinned[uuid];
+            const isTrashed = !!state.org.deleted[uuid];
+            const currentCat = state.org.convCategory[uuid] || '';
+
+            openModal(conv.title, (container) => {
+                if (isTrashed) {
+                    container.innerHTML = `
+                        <p class="text-xs text-claude-muted dark:text-claude-darkMuted">该对话当前位于回收站中，你可以将其恢复或彻底移除。</p>
+                        <div class="grid grid-cols-2 gap-2.5 pt-1">
+                            <button id="modalRestoreBtn" class="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs transition">
+                                <i class="fa-solid fa-rotate-left mr-1.5"></i>恢复对话
+                            </button>
+                            <button id="modalHardDelBtn" class="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium text-xs transition">
+                                <i class="fa-solid fa-trash mr-1.5"></i>彻底删除
+                            </button>
+                        </div>
+                    `;
+                    container.querySelector('#modalRestoreBtn').addEventListener('click', () => {
+                        closeModal();
+                        restoreFromTrash(uuid);
+                    });
+                    container.querySelector('#modalHardDelBtn').addEventListener('click', () => {
+                        closeModal();
+                        permanentlyDelete(uuid);
+                    });
+                    return;
+                }
+
+                // 快捷置顶操作
+                const quickRow = document.createElement('div');
+                quickRow.className = 'flex items-center gap-2';
+                quickRow.innerHTML = `
+                    <button id="modalPinBtn" class="flex-1 py-2.5 px-3 rounded-xl border border-claude-border dark:border-claude-darkBorder bg-claude-bg dark:bg-claude-darkSidebar hover:border-claude-accent font-medium text-xs flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-thumbtack ${isPinned ? 'text-claude-accent' : ''}"></i>
+                        <span>${isPinned ? '取消置顶' : '置顶此对话'}</span>
+                    </button>
+                    <button id="modalTrashBtn" class="py-2.5 px-3.5 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 font-medium text-xs flex items-center justify-center gap-1.5 transition">
+                        <i class="fa-regular fa-trash-can"></i>
+                        <span>移入回收站</span>
+                    </button>
+                `;
+                quickRow.querySelector('#modalPinBtn').addEventListener('click', () => {
+                    closeModal();
+                    togglePinConversation(uuid);
+                });
+                quickRow.querySelector('#modalTrashBtn').addEventListener('click', () => {
+                    closeModal();
+                    moveToTrash(uuid);
+                });
+                container.appendChild(quickRow);
+
+                // 归类选择区
+                const catSection = document.createElement('div');
+                catSection.className = 'space-y-2 pt-2 border-t border-claude-border dark:border-claude-darkBorder';
+                catSection.innerHTML = `<div class="text-xs font-medium text-claude-muted dark:text-claude-darkMuted">归类到文件夹标签：</div>`;
+
+                const pillsWrap = document.createElement('div');
+                pillsWrap.className = 'flex flex-wrap gap-2';
+
+                const allOptions = [''].concat(state.org.categories);
+                for (const cat of allOptions) {
+                    const label = cat || '未归类';
+                    const active = currentCat === cat;
+                    const pill = document.createElement('button');
+                    pill.className = `px-3 py-1.5 rounded-xl text-xs font-medium border transition ${
+                        active
+                            ? 'bg-claude-accent text-white border-claude-accent'
+                            : 'bg-claude-bg dark:bg-claude-darkSidebar border-claude-border dark:border-claude-darkBorder hover:border-claude-accent'
+                    }`;
+                    pill.innerHTML = `${cat ? '<i class="fa-solid fa-folder text-[10px] mr-1 opacity-80"></i>' : ''}${escapeHtml(label)}`;
+                    pill.addEventListener('click', () => {
+                        closeModal();
+                        setConversationCategory(uuid, cat);
+                    });
+                    pillsWrap.appendChild(pill);
+                }
+                catSection.appendChild(pillsWrap);
+
+                // 快速新建分类并归类
+                const addCatForm = document.createElement('div');
+                addCatForm.className = 'flex items-center gap-2 pt-2';
+                addCatForm.innerHTML = `
+                    <input id="quickNewCatInput" type="text" maxlength="20" placeholder="输入新分类名称并归类..." class="flex-1 px-3 py-2 text-xs rounded-xl bg-claude-bg dark:bg-claude-darkSidebar border border-claude-border dark:border-claude-darkBorder focus:outline-none focus:ring-2 focus:ring-claude-accent/50" />
+                    <button id="quickNewCatBtn" class="px-3.5 py-2 rounded-xl bg-claude-accent hover:bg-claude-accentHover text-white text-xs font-medium transition flex-shrink-0">新建并归类</button>
+                `;
+                addCatForm.querySelector('#quickNewCatBtn').addEventListener('click', () => {
+                    const val = addCatForm.querySelector('#quickNewCatInput').value.trim();
+                    if (!val) return;
+                    if (!state.org.categories.includes(val)) {
+                        state.org.categories.push(val);
+                    }
+                    closeModal();
+                    setConversationCategory(uuid, val);
+                });
+                catSection.appendChild(addCatForm);
+                container.appendChild(catSection);
+            });
+        }
+
+        // 打开全局分类与回收站管理弹窗
+        function openCategoryManagerModal() {
+            openModal('管理分类与回收站', (container) => {
+                const renderList = () => {
+                    container.innerHTML = '';
+
+                    const addRow = document.createElement('div');
+                    addRow.className = 'flex items-center gap-2';
+                    addRow.innerHTML = `
+                        <input id="mgrNewCatInput" type="text" maxlength="20" placeholder="新增分类名称（如：灵感、翻译）..." class="flex-1 px-3 py-2 text-xs rounded-xl bg-claude-bg dark:bg-claude-darkSidebar border border-claude-border dark:border-claude-darkBorder focus:outline-none focus:ring-2 focus:ring-claude-accent/50" />
+                        <button id="mgrAddCatBtn" class="px-3.5 py-2 rounded-xl bg-claude-accent hover:bg-claude-accentHover text-white text-xs font-medium transition flex-shrink-0">添加分类</button>
+                    `;
+                    addRow.querySelector('#mgrAddCatBtn').addEventListener('click', () => {
+                        const val = addRow.querySelector('#mgrNewCatInput').value.trim();
+                        if (!val) return;
+                        if (state.org.categories.includes(val)) {
+                            showToast('该分类已存在', 'error');
+                            return;
+                        }
+                        state.org.categories.push(val);
+                        saveOrgData();
+                        renderCategoryTabs();
+                        renderList();
+                        showToast(`已添加分类「${val}」`, 'success');
+                    });
+                    container.appendChild(addRow);
+
+                    const listWrap = document.createElement('div');
+                    listWrap.className = 'space-y-1.5 pt-2';
+                    if (state.org.categories.length === 0) {
+                        listWrap.innerHTML = `<p class="text-xs text-claude-muted text-center py-4">暂无自定义分类</p>`;
+                    } else {
+                        state.org.categories.forEach((cat, idx) => {
+                            const count = state.allConversations.filter(
+                                c => !state.org.deleted[c.uuid] && !state.org.hardDeleted[c.uuid] && state.org.convCategory[c.uuid] === cat
+                            ).length;
+                            const row = document.createElement('div');
+                            row.className = 'flex items-center justify-between px-3 py-2 rounded-xl bg-claude-bg dark:bg-claude-darkSidebar border border-claude-border dark:border-claude-darkBorder';
+                            row.innerHTML = `
+                                <span class="text-xs font-medium"><i class="fa-solid fa-folder text-claude-accent mr-2"></i>${escapeHtml(cat)} <span class="text-claude-muted font-normal">(${count})</span></span>
+                                <button class="text-xs text-red-500 hover:text-red-600 px-2 py-1 rounded-lg hover:bg-red-500/10 transition">删除分类</button>
+                            `;
+                            row.querySelector('button').addEventListener('click', () => {
+                                state.org.categories.splice(idx, 1);
+                                Object.keys(state.org.convCategory).forEach(k => {
+                                    if (state.org.convCategory[k] === cat) delete state.org.convCategory[k];
+                                });
+                                if (state.activeCategory === cat) state.activeCategory = '__all__';
+                                saveOrgData();
+                                renderCategoryTabs();
+                                applyFilterAndSort();
+                                renderList();
+                            });
+                            listWrap.appendChild(row);
+                        });
+                    }
+                    container.appendChild(listWrap);
+
+                    // 清空回收站快捷操作
+                    const trashUuids = state.allConversations
+                        .filter(c => !state.org.hardDeleted[c.uuid] && state.org.deleted[c.uuid])
+                        .map(c => c.uuid);
+
+                    if (trashUuids.length > 0) {
+                        const trashBox = document.createElement('div');
+                        trashBox.className = 'pt-3 border-t border-claude-border dark:border-claude-darkBorder flex items-center justify-between';
+                        trashBox.innerHTML = `
+                            <span class="text-xs text-claude-muted">回收站中有 ${trashUuids.length} 段已删对话</span>
+                            <button id="emptyTrashBtn" class="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-medium transition">清空回收站</button>
+                        `;
+                        trashBox.querySelector('#emptyTrashBtn').addEventListener('click', () => {
+                            for (const id of trashUuids) {
+                                state.org.hardDeleted[id] = true;
+                                delete state.org.deleted[id];
+                            }
+                            if (state.activeCategory === '__trash__') state.activeCategory = '__all__';
+                            saveOrgData();
+                            updateStatsBadge();
+                            renderCategoryTabs();
+                            applyFilterAndSort();
+                            closeModal();
+                            showToast('回收站已清空');
+                        });
+                        container.appendChild(trashBox);
+                    }
+                };
+
+                renderList();
+            });
+        }
+
+        function syncActiveChatHeaderState() {
+            const uuid = state.activeUuid;
+            if (!uuid) return;
+            const isPinned = !!state.org.pinned[uuid];
+            const cat = state.org.convCategory[uuid] || '';
+
+            els.pinChatBtn.classList.toggle('text-claude-accent', isPinned);
+            els.pinChatBtn.classList.toggle('bg-claude-accent/10', isPinned);
+            els.pinChatBtn.title = isPinned ? '取消置顶' : '置顶对话';
+
+            els.categorizeChatBtn.classList.toggle('text-claude-accent', !!cat);
+            els.categorizeChatBtn.classList.toggle('bg-claude-accent/10', !!cat);
+            els.categorizeChatBtn.title = cat ? `当前分类：${cat}（点击修改）` : '设置分类';
+        }
+
+        // =========================================================================
+        // 列表搜索、分类筛选、置顶优先排序与虚拟分页渲染
         // =========================================================================
         function applyFilterAndSort() {
             const q = state.searchQuery.trim().toLowerCase();
             const fullText = els.fullTextSearchToggle.checked;
             const sortBy = els.sortSelect.value;
+            const catFilter = state.activeCategory;
 
+            // 1. 先按删除状态与分类过滤
+            const categoryFiltered = state.allConversations.filter(conv => {
+                if (state.org.hardDeleted[conv.uuid]) return false;
+                const isTrashed = !!state.org.deleted[conv.uuid];
+
+                if (catFilter === '__trash__') return isTrashed;
+                if (isTrashed) return false;
+
+                if (catFilter === '__pinned__') return !!state.org.pinned[conv.uuid];
+                if (catFilter === '__uncategorized__') return !state.org.convCategory[conv.uuid];
+                if (catFilter !== '__all__') return state.org.convCategory[conv.uuid] === catFilter;
+                return true;
+            });
+
+            // 2. 再按搜索关键词过滤
             let result = [];
-
             if (!q) {
-                result = state.allConversations.slice();
+                result = categoryFiltered;
             } else {
-                for (const conv of state.allConversations) {
+                for (const conv of categoryFiltered) {
                     if (conv.title.toLowerCase().includes(q) || (conv.summary && conv.summary.toLowerCase().includes(q))) {
                         conv._matchSnippet = '';
                         result.push(conv);
@@ -758,11 +1270,21 @@
                 }
             }
 
-            // 排序
+            // 3. 排序（非回收站视图下，已置顶对话始终优先排在顶部）
             result.sort((a, b) => {
+                if (catFilter !== '__trash__') {
+                    const pinA = state.org.pinned[a.uuid] || 0;
+                    const pinB = state.org.pinned[b.uuid] || 0;
+                    if (pinA > 0 && pinB === 0) return -1;
+                    if (pinB > 0 && pinA === 0) return 1;
+                }
+
+                if (sortBy === 'updated_asc') return a.updatedTs - b.updatedTs;
                 if (sortBy === 'created_desc') return b.createdTs - a.createdTs;
                 if (sortBy === 'created_asc') return a.createdTs - b.createdTs;
                 if (sortBy === 'messages_desc') return b.msgCount - a.msgCount;
+                if (sortBy === 'messages_asc') return a.msgCount - b.msgCount;
+                if (sortBy === 'title_asc') return a.title.localeCompare(b.title, 'zh-CN');
                 return b.updatedTs - a.updatedTs; // 默认按最近更新
             });
 
@@ -774,7 +1296,7 @@
                 els.conversationList.innerHTML = `
                     <div class="text-center py-12 px-4 text-claude-muted dark:text-claude-darkMuted text-xs">
                         <i class="fa-solid fa-magnifying-glass text-xl mb-2 opacity-50 block"></i>
-                        没有找到匹配的对话
+                        当前筛选条件下没有对话
                     </div>
                 `;
                 return;
@@ -796,29 +1318,54 @@
             const q = state.searchQuery.trim();
 
             for (const conv of nextBatch) {
-                const btn = document.createElement('button');
+                const itemEl = document.createElement('div');
                 const isActive = conv.uuid === state.activeUuid;
-                btn.dataset.uuid = conv.uuid;
-                btn.className = `conv-item w-full text-left px-3 py-2.5 rounded-xl transition flex flex-col gap-1 border ${
+                const isPinned = !!state.org.pinned[conv.uuid];
+                const catName = state.org.convCategory[conv.uuid] || '';
+
+                itemEl.dataset.uuid = conv.uuid;
+                itemEl.role = 'button';
+                itemEl.tabIndex = 0;
+                itemEl.className = `conv-item group relative w-full text-left px-3 py-2.5 rounded-xl transition flex flex-col gap-1 border cursor-pointer ${
                     isActive
                         ? 'bg-claude-card dark:bg-claude-darkCard border-claude-accent/50 shadow-sm'
+                        : isPinned
+                        ? 'bg-claude-card/50 dark:bg-claude-darkCard/40 border-claude-accent/20 hover:bg-black/5 dark:hover:bg-white/5'
                         : 'border-transparent hover:bg-black/5 dark:hover:bg-white/5'
                 }`;
 
                 const snippetText = (q && conv._matchSnippet) ? conv._matchSnippet : (conv.preview || '暂无消息内容');
                 const displayDate = formatDateTime(conv.updated_at || conv.created_at, true);
 
-                btn.innerHTML = `
-                    <div class="flex items-start justify-between gap-2">
-                        <span class="font-medium text-sm leading-snug line-clamp-1 ${isActive ? 'text-claude-accent' : ''}">${highlightKeyword(conv.title, q)}</span>
-                        <span class="text-[11px] text-claude-muted dark:text-claude-darkMuted flex-shrink-0 mt-0.5">${conv.msgCount}条</span>
+                itemEl.innerHTML = `
+                    <div class="flex items-start justify-between gap-1.5">
+                        <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                            ${isPinned ? '<i class="fa-solid fa-thumbtack text-[11px] text-claude-accent flex-shrink-0" title="已置顶"></i>' : ''}
+                            <span class="conv-title font-medium text-sm leading-snug line-clamp-1 ${isActive ? 'text-claude-accent' : ''}">${highlightKeyword(conv.title, q)}</span>
+                        </div>
+                        <button type="button" class="conv-more-btn flex-shrink-0 -mr-1 -mt-0.5 px-1.5 py-0.5 rounded-lg text-claude-muted hover:text-claude-text dark:hover:text-claude-darkText hover:bg-black/10 dark:hover:bg-white/10 transition" title="置顶 / 归类 / 删除">
+                            <i class="fa-solid fa-ellipsis text-xs"></i>
+                        </button>
                     </div>
                     <p class="text-xs text-claude-muted dark:text-claude-darkMuted line-clamp-1">${highlightKeyword(snippetText, q)}</p>
-                    <span class="text-[10px] text-claude-muted/75 dark:text-claude-darkMuted/75">${displayDate}</span>
+                    <div class="flex items-center justify-between gap-2 mt-0.5">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <span class="text-[10px] text-claude-muted/75 dark:text-claude-darkMuted/75">${displayDate}</span>
+                            ${catName ? `<span class="px-1.5 py-0.2 rounded bg-claude-accent/12 text-claude-accent text-[10px] font-medium truncate max-w-[110px]">${escapeHtml(catName)}</span>` : ''}
+                        </div>
+                        <span class="text-[10px] text-claude-muted dark:text-claude-darkMuted flex-shrink-0">${conv.msgCount}条</span>
+                    </div>
                 `;
 
-                btn.addEventListener('click', () => selectConversation(conv.uuid));
-                fragment.appendChild(btn);
+                // 点击右侧更多按钮弹出管理菜单（阻止触发打开对话）
+                const moreBtn = itemEl.querySelector('.conv-more-btn');
+                moreBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openConversationActionModal(conv.uuid);
+                });
+
+                itemEl.addEventListener('click', () => selectConversation(conv.uuid));
+                fragment.appendChild(itemEl);
             }
 
             els.conversationList.appendChild(fragment);
@@ -943,12 +1490,13 @@
             // 更新左侧选中高亮样式
             document.querySelectorAll('.conv-item').forEach(btn => {
                 const active = btn.dataset.uuid === uuid;
+                const pinned = !!state.org.pinned[btn.dataset.uuid];
                 btn.classList.toggle('bg-claude-card', active);
                 btn.classList.toggle('dark:bg-claude-darkCard', active);
                 btn.classList.toggle('border-claude-accent/50', active);
                 btn.classList.toggle('shadow-sm', active);
-                btn.classList.toggle('border-transparent', !active);
-                const titleSpan = btn.querySelector('span');
+                btn.classList.toggle('border-transparent', !active && !pinned);
+                const titleSpan = btn.querySelector('.conv-title');
                 if (titleSpan) titleSpan.classList.toggle('text-claude-accent', active);
             });
 
@@ -957,9 +1505,11 @@
             els.chatContainer.classList.remove('hidden');
             showMobileChatView();
 
-            // 设置头部元数据
+            // 设置头部元数据与按钮状态
+            const cat = state.org.convCategory[uuid];
             els.activeChatTitle.textContent = conv.title;
-            els.activeChatMeta.textContent = `创建于 ${formatDateTime(conv.created_at)} · 共 ${conv.msgCount} 条消息`;
+            els.activeChatMeta.textContent = `${cat ? `[${cat}] · ` : ''}创建于 ${formatDateTime(conv.created_at)} · 共 ${conv.msgCount} 条消息`;
+            syncActiveChatHeaderState();
 
             renderMessages(conv);
             els.messagesScrollArea.scrollTop = 0;
@@ -1167,6 +1717,7 @@
         // 手机端单栏响应式导航控制
         // =========================================================================
         function showMobileChatView() {
+            state.mobileView = 'chat';
             if (window.innerWidth < 768) {
                 els.sidebarPanel.classList.add('hidden');
                 els.mainPanel.classList.remove('hidden');
@@ -1175,6 +1726,7 @@
         }
 
         function showMobileListView() {
+            state.mobileView = 'list';
             if (window.innerWidth < 768) {
                 els.mainPanel.classList.add('hidden');
                 els.mainPanel.classList.remove('flex');
@@ -1182,13 +1734,21 @@
             }
         }
 
+        // 记录上一次是否处于桌面端宽度，防止手机端弹出输入法键盘触发 resize 导致误跳回对话页
+        let lastIsDesktop = window.innerWidth >= 768;
         window.addEventListener('resize', () => {
-            if (window.innerWidth >= 768) {
+            const isDesktop = window.innerWidth >= 768;
+            if (isDesktop === lastIsDesktop) {
+                return;
+            }
+            lastIsDesktop = isDesktop;
+
+            if (isDesktop) {
                 els.sidebarPanel.classList.remove('hidden');
                 els.mainPanel.classList.remove('hidden');
                 els.mainPanel.classList.add('flex');
             } else {
-                if (state.activeUuid && !els.chatContainer.classList.contains('hidden')) {
+                if (state.mobileView === 'chat' && state.activeUuid) {
                     showMobileChatView();
                 } else {
                     showMobileListView();
@@ -1258,6 +1818,29 @@
         });
 
         els.sortSelect.addEventListener('change', applyFilterAndSort);
+
+        // 弹窗关闭与分类管理事件
+        els.closeModalBtn.addEventListener('click', closeModal);
+        els.customModalOverlay.addEventListener('click', (e) => {
+            if (e.target === els.customModalOverlay) closeModal();
+        });
+        els.manageCategoriesBtn.addEventListener('click', openCategoryManagerModal);
+
+        // 聊天详情页顶部：置顶、归类、删除按钮
+        els.pinChatBtn.addEventListener('click', () => {
+            if (state.activeUuid) togglePinConversation(state.activeUuid);
+        });
+        els.categorizeChatBtn.addEventListener('click', () => {
+            if (state.activeUuid) openConversationActionModal(state.activeUuid);
+        });
+        els.deleteChatBtn.addEventListener('click', () => {
+            if (!state.activeUuid) return;
+            if (state.org.deleted[state.activeUuid]) {
+                openConversationActionModal(state.activeUuid);
+            } else {
+                moveToTrash(state.activeUuid);
+            }
+        });
 
         // 手机端返回对话列表
         els.backToListBtn.addEventListener('click', showMobileListView);
