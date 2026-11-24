@@ -1,1 +1,1317 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Claude 聊天记录本地查看器</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        claude: {
+                            bg: '#FAF9F5',
+                            sidebar: '#F0EFEA',
+                            card: '#FFFFFF',
+                            human: '#EFECE6',
+                            accent: '#D97757',
+                            accentHover: '#C46344',
+                            border: '#E5E3DC',
+                            text: '#1F1E1D',
+                            muted: '#6E6C66',
+                            darkBg: '#1C1B19',
+                            darkSidebar: '#141413',
+                            darkCard: '#262522',
+                            darkHuman: '#2F2E2A',
+                            darkBorder: '#363531',
+                            darkText: '#ECEAE4',
+                            darkMuted: '#9E9B93'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"PingFang SC"', '"Microsoft YaHei"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+                    }
+                }
+            }
+        };
+    </script>
+    <!-- Markdown, 代码高亮, 安全过滤与 ZIP 解压支持 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.9/dist/purify.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
+    <style>
+        /* 适配移动端动态视口高度，防止 iOS 浏览器工具栏遮挡底部 */
+        .app-height {
+            height: 100vh;
+            height: 100dvh;
+        }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(150, 145, 135, 0.35);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(150, 145, 135, 0.6);
+        }
+
+        /* Markdown 正文排版样式 */
+        .markdown-body {
+            line-height: 1.72;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            font-size: 0.95rem;
+        }
+        .markdown-body p {
+            margin-bottom: 0.85em;
+        }
+        .markdown-body p:last-child {
+            margin-bottom: 0;
+        }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
+            font-weight: 600;
+            margin-top: 1.25em;
+            margin-bottom: 0.55em;
+            line-height: 1.35;
+        }
+        .markdown-body h1 { font-size: 1.35rem; }
+        .markdown-body h2 { font-size: 1.2rem; }
+        .markdown-body h3 { font-size: 1.08rem; }
+        .markdown-body ul {
+            list-style-type: disc;
+            padding-left: 1.4em;
+            margin-bottom: 0.85em;
+        }
+        .markdown-body ol {
+            list-style-type: decimal;
+            padding-left: 1.4em;
+            margin-bottom: 0.85em;
+        }
+        .markdown-body li {
+            margin-bottom: 0.3em;
+        }
+        .markdown-body blockquote {
+            border-left: 3px solid #D97757;
+            padding-left: 0.9em;
+            margin: 0.85em 0;
+            opacity: 0.85;
+        }
+        .markdown-body a {
+            color: #D97757;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        .markdown-body code:not(pre code) {
+            background: rgba(135, 131, 120, 0.15);
+            color: #C45533;
+            padding: 0.15em 0.4em;
+            border-radius: 0.35rem;
+            font-size: 0.86em;
+            font-family: "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+        }
+        .dark .markdown-body code:not(pre code) {
+            background: rgba(255, 255, 255, 0.1);
+            color: #F09475;
+        }
+        .markdown-body pre {
+            margin: 0.9em 0;
+            border-radius: 0.65rem;
+            overflow: hidden;
+            background: #18181B;
+            color: #F4F4F5;
+        }
+        .markdown-body pre code {
+            display: block;
+            padding: 0.95rem 1rem;
+            overflow-x: auto;
+            font-size: 0.84rem;
+            line-height: 1.55;
+            font-family: "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+        }
+        .markdown-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0.9em 0;
+            font-size: 0.88rem;
+            display: block;
+            overflow-x: auto;
+        }
+        .markdown-body th, .markdown-body td {
+            border: 1px solid rgba(140, 135, 125, 0.3);
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+        }
+        .markdown-body th {
+            background: rgba(140, 135, 125, 0.1);
+            font-weight: 600;
+        }
+        .markdown-body hr {
+            border: 0;
+            border-top: 1px solid rgba(140, 135, 125, 0.25);
+            margin: 1.2em 0;
+        }
+
+        /* 搜索关键词高亮 */
+        mark.search-hl {
+            background-color: #FDE047;
+            color: #1F1E1D;
+            padding: 0 2px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-claude-bg dark:bg-claude-darkBg text-claude-text dark:text-claude-darkText font-sans antialiased selection:bg-claude-accent/20 overflow-hidden">
+
+    <!-- 顶部/全局提示框 Toast -->
+    <div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none w-[90%] max-w-sm"></div>
+
+    <!-- 大文件加载进度遮罩 -->
+    <div id="loadingOverlay" class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-claude-card dark:bg-claude-darkCard border border-claude-border dark:border-claude-darkBorder rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center">
+            <div class="w-12 h-12 rounded-full border-4 border-claude-accent/25 border-t-claude-accent animate-spin mx-auto mb-4"></div>
+            <h3 id="loadingTitle" class="text-base font-semibold mb-1">正在读取文件...</h3>
+            <p id="loadingSubtext" class="text-xs text-claude-muted dark:text-claude-darkMuted">大体积 JSON（如 90MB+）可能需要几秒钟解析，请勿关闭页面</p>
+        </div>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="app-height flex flex-col md:flex-row w-full overflow-hidden">
+
+        <!-- ==================== 左侧边栏：对话列表 ==================== -->
+        <aside id="sidebarPanel" class="w-full md:w-80 lg:w-96 flex-shrink-0 bg-claude-sidebar dark:bg-claude-darkSidebar border-r border-claude-border dark:border-claude-darkBorder flex flex-col h-full transition-all">
+            
+            <!-- 边栏头部：Logo + 操作按钮 -->
+            <div class="p-3.5 border-b border-claude-border dark:border-claude-darkBorder flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-8 h-8 rounded-xl bg-claude-accent text-white flex items-center justify-center font-bold shadow-sm flex-shrink-0">
+                        <i class="fa-solid fa-sparkles text-sm"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h1 class="font-semibold text-sm truncate">Claude 记录查看器</h1>
+                        <p id="statsBadge" class="text-[11px] text-claude-muted dark:text-claude-darkMuted truncate">纯本地运行 · 隐私不上传</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-1.5 flex-shrink-0">
+                    <!-- 重新选择文件按钮 -->
+                    <label for="fileInput" title="导入文件" class="cursor-pointer p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-claude-muted dark:text-claude-darkMuted hover:text-claude-text dark:hover:text-claude-darkText transition">
+                        <i class="fa-solid fa-folder-open text-sm"></i>
+                    </label>
+                    <!-- 深浅色切换按钮 -->
+                    <button id="themeToggleBtn" title="切换深色/浅色模式" class="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-claude-muted dark:text-claude-darkMuted hover:text-claude-text dark:hover:text-claude-darkText transition">
+                        <i class="fa-solid fa-moon dark:hidden text-sm"></i>
+                        <i class="fa-solid fa-sun hidden dark:inline text-sm text-amber-400"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 搜索与筛选区 -->
+            <div id="searchArea" class="p-3 border-b border-claude-border dark:border-claude-darkBorder space-y-2 hidden">
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-xs text-claude-muted dark:text-claude-darkMuted"></i>
+                    <input
+                        id="searchInput"
+                        type="text"
+                        placeholder="搜索对话标题或聊天内容..."
+                        class="w-full pl-8 pr-8 py-2 text-sm rounded-xl bg-claude-card dark:bg-claude-darkCard border border-claude-border dark:border-claude-darkBorder focus:outline-none focus:ring-2 focus:ring-claude-accent/50 transition"
+                    />
+                    <button id="clearSearchBtn" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-claude-muted hover:text-claude-text p-1">
+                        <i class="fa-solid fa-circle-xmark text-xs"></i>
+                    </button>
+                </div>
+
+                <div class="flex items-center justify-between text-xs gap-2">
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer text-claude-muted dark:text-claude-darkMuted select-none">
+                        <input id="fullTextSearchToggle" type="checkbox" checked class="rounded accent-claude-accent w-3.5 h-3.5" />
+                        <span>包含聊天全文搜索</span>
+                    </label>
+
+                    <select id="sortSelect" class="bg-transparent text-claude-muted dark:text-claude-darkMuted focus:outline-none cursor-pointer text-xs py-0.5">
+                        <option value="updated_desc">最近更新</option>
+                        <option value="created_desc">最新创建</option>
+                        <option value="created_asc">最早创建</option>
+                        <option value="messages_desc">消息最多</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 对话列表滚动区 -->
+            <div id="conversationList" class="flex-1 overflow-y-auto p-2 space-y-1">
+                <!-- 未加载文件时的左侧引导 -->
+                <div id="sidebarEmptyHint" class="h-full flex flex-col items-center justify-center text-center p-6">
+                    <div class="w-14 h-14 rounded-2xl bg-claude-accent/10 text-claude-accent flex items-center justify-center mb-3">
+                        <i class="fa-solid fa-file-import text-2xl"></i>
+                    </div>
+                    <p class="text-sm font-medium mb-1">尚未导入聊天记录</p>
+                    <p class="text-xs text-claude-muted dark:text-claude-darkMuted mb-4 leading-relaxed">
+                        支持直接导入解压后的 <code class="px-1 py-0.5 bg-black/5 dark:bg-white/10 rounded">conversations.json</code> 或原压缩包 <code class="px-1 py-0.5 bg-black/5 dark:bg-white/10 rounded">conversations-000.zip</code>
+                    </p>
+                    <label for="fileInput" class="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-claude-accent hover:bg-claude-accentHover text-white text-sm font-medium shadow-sm transition active:scale-95">
+                        <i class="fa-solid fa-upload text-xs"></i>
+                        <span>选择文件导入</span>
+                    </label>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ==================== 右侧主面板：对话详情 ==================== -->
+        <main id="mainPanel" class="hidden md:flex flex-1 flex-col h-full bg-claude-bg dark:bg-claude-darkBg overflow-hidden relative">
+            
+            <!-- 初始欢迎上传面板（桌面端默认显示，选择对话后隐藏） -->
+            <div id="welcomeDropzone" class="flex-1 flex flex-col items-center justify-center p-6 overflow-y-auto">
+                <div id="dropArea" class="max-w-lg w-full border-2 border-dashed border-claude-border dark:border-claude-darkBorder hover:border-claude-accent dark:hover:border-claude-accent rounded-3xl p-8 text-center bg-claude-card/60 dark:bg-claude-darkCard/50 transition cursor-pointer">
+                    <div class="w-16 h-16 rounded-2xl bg-claude-accent/15 text-claude-accent flex items-center justify-center mx-auto mb-4">
+                        <i class="fa-solid fa-comments text-3xl"></i>
+                    </div>
+                    <h2 class="text-lg font-semibold mb-2">导入你的 Claude 导出数据</h2>
+                    <p class="text-sm text-claude-muted dark:text-claude-darkMuted mb-6 leading-relaxed">
+                        点击下方按钮或将文件拖拽到此处。<br>
+                        所有数据<strong>100% 在你的设备浏览器本地解析</strong>，绝不会上传至任何服务器，95MB+ 大文件也能流畅浏览。
+                    </p>
+                    <label for="fileInput" class="cursor-pointer inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-claude-accent hover:bg-claude-accentHover text-white font-medium text-sm shadow-md transition active:scale-95">
+                        <i class="fa-solid fa-folder-open"></i>
+                        <span>选择 conversations.json 或 .zip</span>
+                    </label>
+                    <div class="mt-5 pt-4 border-t border-claude-border/60 dark:border-claude-darkBorder/60 flex flex-wrap justify-center gap-4 text-xs text-claude-muted dark:text-claude-darkMuted">
+                        <span><i class="fa-solid fa-check text-emerald-500 mr-1"></i>支持 Markdown 与代码高亮</span>
+                        <span><i class="fa-solid fa-check text-emerald-500 mr-1"></i>支持 Thinking 思考过程折叠</span>
+                        <span><i class="fa-solid fa-check text-emerald-500 mr-1"></i>支持单篇导出 .md</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 聊天视图容器（选中某个对话后显示） -->
+            <div id="chatContainer" class="hidden flex-1 flex flex-col h-full overflow-hidden">
+                
+                <!-- 聊天顶部栏（含手机端返回按钮） -->
+                <header class="px-3 sm:px-5 py-3 border-b border-claude-border dark:border-claude-darkBorder bg-claude-card/80 dark:bg-claude-darkCard/80 backdrop-blur-md flex items-center justify-between gap-2 flex-shrink-0 z-10">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <!-- 手机端返回列表按钮 -->
+                        <button id="backToListBtn" class="md:hidden flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-claude-sidebar dark:bg-claude-darkSidebar text-sm font-medium active:scale-95 transition flex-shrink-0">
+                            <i class="fa-solid fa-chevron-left text-xs"></i>
+                            <span>列表</span>
+                        </button>
+                        <div class="min-w-0">
+                            <h2 id="activeChatTitle" class="font-semibold text-sm sm:text-base truncate">未命名对话</h2>
+                            <p id="activeChatMeta" class="text-[11px] text-claude-muted dark:text-claude-darkMuted truncate"></p>
+                        </div>
+                    </div>
+
+                    <!-- 右上角工具按钮 -->
+                    <div class="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
+                        <button id="inChatSearchBtn" title="在当前对话中查找" class="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-claude-muted dark:text-claude-darkMuted hover:text-claude-text dark:hover:text-claude-darkText transition">
+                            <i class="fa-solid fa-magnifying-glass text-sm"></i>
+                        </button>
+                        <button id="copyChatBtn" title="复制整段对话为 Markdown" class="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-claude-muted dark:text-claude-darkMuted hover:text-claude-text dark:hover:text-claude-darkText transition">
+                            <i class="fa-regular fa-copy text-sm"></i>
+                        </button>
+                        <button id="exportMdBtn" title="下载当前对话 (.md)" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-claude-accent/10 hover:bg-claude-accent/20 text-claude-accent text-xs font-medium transition">
+                            <i class="fa-solid fa-download"></i>
+                            <span class="hidden sm:inline">导出 MD</span>
+                        </button>
+                    </div>
+                </header>
+
+                <!-- 当前对话内搜索条（默认折叠） -->
+                <div id="inChatSearchBar" class="hidden px-4 py-2 bg-claude-sidebar/80 dark:bg-claude-darkSidebar/80 border-b border-claude-border dark:border-claude-darkBorder flex items-center gap-2">
+                    <i class="fa-solid fa-filter text-xs text-claude-muted"></i>
+                    <input id="inChatSearchInput" type="text" placeholder="筛选当前对话中的消息关键词..." class="flex-1 bg-transparent text-sm focus:outline-none" />
+                    <span id="inChatMatchCount" class="text-xs text-claude-muted"></span>
+                    <button id="closeInChatSearchBtn" class="p-1 text-claude-muted hover:text-claude-text">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                </div>
+
+                <!-- 消息流滚动区 -->
+                <div id="messagesScrollArea" class="flex-1 overflow-y-auto px-3 sm:px-6 py-5 scroll-smooth">
+                    <div id="messagesList" class="max-w-3xl mx-auto space-y-5 pb-12"></div>
+                </div>
+
+                <!-- 悬浮快捷滚动按钮（直达顶部/底部） -->
+                <div class="absolute right-4 bottom-5 flex flex-col gap-2 z-10">
+                    <button id="scrollTopBtn" title="回到顶部" class="w-9 h-9 rounded-full bg-claude-card/90 dark:bg-claude-darkCard/90 border border-claude-border dark:border-claude-darkBorder shadow-md flex items-center justify-center text-claude-muted hover:text-claude-text dark:hover:text-claude-darkText active:scale-95 transition">
+                        <i class="fa-solid fa-arrow-up text-xs"></i>
+                    </button>
+                    <button id="scrollBottomBtn" title="直达底部" class="w-9 h-9 rounded-full bg-claude-card/90 dark:bg-claude-darkCard/90 border border-claude-border dark:border-claude-darkBorder shadow-md flex items-center justify-center text-claude-muted hover:text-claude-text dark:hover:text-claude-darkText active:scale-95 transition">
+                        <i class="fa-solid fa-arrow-down text-xs"></i>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 隐藏的文件选择器（兼容 iOS / Android / 桌面端选择 JSON 或 ZIP） -->
+    <input id="fileInput" type="file" accept=".json,.zip,application/json,application/zip" class="hidden" />
+
+    <script>
+        // =========================================================================
+        // 全局状态管理（针对 95MB+ 大型 JSON 进行按需分页与低内存索引优化）
+        // =========================================================================
+        const state = {
+            allConversations: [],     // 预处理后的对话数组
+            filteredConversations: [],// 搜索与排序后的对话数组
+            renderedCount: 0,         // 左侧列表当前已渲染的条数（分页懒加载防卡顿）
+            pageSize: 60,             // 每次滚动加载条数
+            activeUuid: null,         // 当前选中的对话 UUID
+            searchQuery: '',          // 全局搜索词
+            inChatQuery: ''           // 当前对话内筛选词
+        };
+
+        // DOM 元素引用
+        const els = {
+            fileInput: document.getElementById('fileInput'),
+            loadingOverlay: document.getElementById('loadingOverlay'),
+            loadingTitle: document.getElementById('loadingTitle'),
+            loadingSubtext: document.getElementById('loadingSubtext'),
+            sidebarPanel: document.getElementById('sidebarPanel'),
+            mainPanel: document.getElementById('mainPanel'),
+            statsBadge: document.getElementById('statsBadge'),
+            searchArea: document.getElementById('searchArea'),
+            searchInput: document.getElementById('searchInput'),
+            clearSearchBtn: document.getElementById('clearSearchBtn'),
+            fullTextSearchToggle: document.getElementById('fullTextSearchToggle'),
+            sortSelect: document.getElementById('sortSelect'),
+            conversationList: document.getElementById('conversationList'),
+            sidebarEmptyHint: document.getElementById('sidebarEmptyHint'),
+            welcomeDropzone: document.getElementById('welcomeDropzone'),
+            dropArea: document.getElementById('dropArea'),
+            chatContainer: document.getElementById('chatContainer'),
+            backToListBtn: document.getElementById('backToListBtn'),
+            activeChatTitle: document.getElementById('activeChatTitle'),
+            activeChatMeta: document.getElementById('activeChatMeta'),
+            messagesScrollArea: document.getElementById('messagesScrollArea'),
+            messagesList: document.getElementById('messagesList'),
+            themeToggleBtn: document.getElementById('themeToggleBtn'),
+            inChatSearchBtn: document.getElementById('inChatSearchBtn'),
+            inChatSearchBar: document.getElementById('inChatSearchBar'),
+            inChatSearchInput: document.getElementById('inChatSearchInput'),
+            inChatMatchCount: document.getElementById('inChatMatchCount'),
+            closeInChatSearchBtn: document.getElementById('closeInChatSearchBtn'),
+            copyChatBtn: document.getElementById('copyChatBtn'),
+            exportMdBtn: document.getElementById('exportMdBtn'),
+            scrollTopBtn: document.getElementById('scrollTopBtn'),
+            scrollBottomBtn: document.getElementById('scrollBottomBtn'),
+            toastContainer: document.getElementById('toastContainer')
+        };
+
+        // 配置 Marked.js（若 CDN 可用）
+        if (window.marked) {
+            marked.setOptions({
+                breaks: true,
+                gfm: true
+            });
+        }
+
+        // =========================================================================
+        // 工具函数：提示框、剪贴板、日期格式化、HTML转义
+        // =========================================================================
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            const bgClass = type === 'error'
+                ? 'bg-red-600 text-white'
+                : type === 'success'
+                ? 'bg-emerald-600 text-white'
+                : 'bg-claude-text dark:bg-claude-darkCard text-white dark:text-claude-darkText border border-white/10';
+
+            toast.className = `${bgClass} px-4 py-2.5 rounded-xl shadow-lg text-xs sm:text-sm font-medium flex items-center gap-2 transition-all duration-300 opacity-0 -translate-y-2 pointer-events-auto`;
+            const icon = type === 'error' ? 'fa-circle-exclamation' : type === 'success' ? 'fa-circle-check' : 'fa-circle-info';
+            toast.innerHTML = `<i class="fa-solid ${icon}"></i><span>${escapeHtml(message)}</span>`;
+            els.toastContainer.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('opacity-0', '-translate-y-2');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 2800);
+        }
+
+        function setLoading(visible, title = '正在处理...', subtext = '') {
+            if (visible) {
+                els.loadingTitle.textContent = title;
+                if (subtext) els.loadingSubtext.textContent = subtext;
+                els.loadingOverlay.classList.remove('hidden');
+                els.loadingOverlay.classList.add('flex');
+            } else {
+                els.loadingOverlay.classList.add('hidden');
+                els.loadingOverlay.classList.remove('flex');
+            }
+        }
+
+        // 让出主线程一帧，确保 Loading 动画在 iOS Safari 上及时刷新
+        function nextFrame() {
+            return new Promise(resolve => setTimeout(resolve, 40));
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function formatDateTime(isoStr, short = false) {
+            if (!isoStr) return '';
+            const d = new Date(isoStr);
+            if (isNaN(d.getTime())) return '';
+            const pad = n => String(n).padStart(2, '0');
+            if (short) {
+                return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            }
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        function copyTextToClipboard(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast('已复制到剪贴板', 'success');
+            } catch (err) {
+                showToast('复制失败，请手动选择复制', 'error');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        // =========================================================================
+        // Claude 消息结构提取器（兼容旧版 text 与新版 content 数组、Thinking、Artifact、附件）
+        // =========================================================================
+        function extractMessageParts(msg) {
+            const parts = {
+                textBlocks: [],
+                thinkingBlocks: [],
+                toolBlocks: [],
+                attachments: []
+            };
+
+            // 1. 解析新版 content 数组
+            if (Array.isArray(msg.content) && msg.content.length > 0) {
+                for (const block of msg.content) {
+                    if (!block || typeof block !== 'object') continue;
+                    if (block.type === 'text' && block.text) {
+                        parts.textBlocks.push(block.text);
+                    } else if (block.type === 'thinking') {
+                        const thinkText = block.thinking || block.text || '';
+                        if (thinkText.trim()) parts.thinkingBlocks.push(thinkText);
+                    } else if (block.type === 'tool_use') {
+                        parts.toolBlocks.push({
+                            kind: '调用工具',
+                            name: block.name || 'tool_use',
+                            detail: block.input ? JSON.stringify(block.input, null, 2) : ''
+                        });
+                    } else if (block.type === 'tool_result') {
+                        let resultStr = '';
+                        if (typeof block.content === 'string') {
+                            resultStr = block.content;
+                        } else if (Array.isArray(block.content)) {
+                            resultStr = block.content.map(c => c.text || JSON.stringify(c)).join('\n');
+                        } else if (block.content) {
+                            resultStr = JSON.stringify(block.content, null, 2);
+                        }
+                        if (resultStr.trim()) {
+                            parts.toolBlocks.push({
+                                kind: block.is_error ? '工具报错' : '工具返回',
+                                name: block.name || 'tool_result',
+                                detail: resultStr
+                            });
+                        }
+                    }
+                }
+            } else if (typeof msg.text === 'string' && msg.text.trim()) {
+                // 2. 回退到顶层 msg.text 字段
+                parts.textBlocks.push(msg.text);
+            }
+
+            // 3. 解析附件（attachments 与 files）
+            if (Array.isArray(msg.attachments)) {
+                for (const att of msg.attachments) {
+                    parts.attachments.push({
+                        name: att.file_name || '附件',
+                        type: att.file_type || '',
+                        size: att.file_size || 0,
+                        extracted: att.extracted_content || ''
+                    });
+                }
+            }
+            if (Array.isArray(msg.files)) {
+                for (const f of msg.files) {
+                    const name = f.file_name || f.name || '上传文件';
+                    // 避免与 attachments 重复显示同名文件
+                    if (!parts.attachments.some(a => a.name === name)) {
+                        parts.attachments.push({
+                            name,
+                            type: f.file_kind || '',
+                            size: 0,
+                            extracted: ''
+                        });
+                    }
+                }
+            }
+
+            return parts;
+        }
+
+        // 获取某条消息用于搜索和摘要的纯文本
+        function getPlainMessageText(msg) {
+            if (typeof msg.text === 'string' && msg.text.trim()) {
+                return msg.text;
+            }
+            if (Array.isArray(msg.content)) {
+                let acc = '';
+                for (const b of msg.content) {
+                    if (b && (b.type === 'text' || b.type === 'thinking')) {
+                        acc += (b.text || b.thinking || '') + '\n';
+                    }
+                }
+                return acc;
+            }
+            return '';
+        }
+
+        // =========================================================================
+        // 文件读取与解析（支持 .json 与 .zip）
+        // =========================================================================
+        async function handleFileSelect(file) {
+            if (!file) return;
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+
+            try {
+                setLoading(true, `正在读取 ${file.name} (${sizeMB} MB)...`, '完全在本地内存中读取，请稍候...');
+                await nextFrame();
+
+                let jsonText = '';
+
+                if (file.name.toLowerCase().endsWith('.zip')) {
+                    if (!window.JSZip) {
+                        throw new Error('当前离线环境未加载 JSZip，请先在系统文件里解压出 conversations.json 再导入');
+                    }
+                    setLoading(true, '正在解压 ZIP 压缩包...', '正在查找其中的 conversations.json');
+                    await nextFrame();
+
+                    const zip = await JSZip.loadAsync(file);
+                    let targetEntry = zip.file(/conversations.*\.json$/i)[0] || zip.file(/\.json$/i)[0];
+                    if (!targetEntry) {
+                        throw new Error('压缩包内未找到 JSON 对话文件，请选择 conversations-000.zip');
+                    }
+                    setLoading(true, `正在读取 ${targetEntry.name}...`, '大文件解压读取需要几秒钟...');
+                    await nextFrame();
+                    jsonText = await targetEntry.async('string');
+                } else {
+                    jsonText = await file.text();
+                }
+
+                setLoading(true, '正在解析 JSON 数据结构...', `文件大小 ${sizeMB} MB，马上完成`);
+                await nextFrame();
+
+                let parsed = JSON.parse(jsonText);
+                // 立即释放大体积原始字符串引用，降低移动端 Safari 内存峰值
+                jsonText = null;
+
+                // 兼容不同导出层级（数组 或 { conversations: [...] }）
+                let list = Array.isArray(parsed)
+                    ? parsed
+                    : (Array.isArray(parsed.conversations) ? parsed.conversations : null);
+
+                if (!list) {
+                    if (parsed && parsed.data_files && parsed.instructions) {
+                        throw new Error('你导入的是下载清单 manifest.json，请导入解压后的 conversations.json 或 conversations-000.zip');
+                    }
+                    throw new Error('无法识别的 JSON 格式，请确认导入的是 conversations.json');
+                }
+
+                setLoading(true, `正在整理 ${list.length} 段历史对话...`, '正在构建索引...');
+                await nextFrame();
+
+                processConversations(list);
+                setLoading(false);
+                showToast(`成功加载 ${state.allConversations.length} 段对话！`, 'success');
+
+            } catch (err) {
+                console.error(err);
+                setLoading(false);
+                showToast(err.message || '文件解析失败，请确认文件完整', 'error');
+            } finally {
+                els.fileInput.value = '';
+            }
+        }
+
+        // 预处理对话列表（只保存轻量展示属性，不复制正文以节省内存）
+        function processConversations(rawList) {
+            let totalMessages = 0;
+            const cleaned = [];
+
+            for (let i = 0; i < rawList.length; i++) {
+                const item = rawList[i];
+                if (!item || typeof item !== 'object') continue;
+
+                const msgs = Array.isArray(item.chat_messages)
+                    ? item.chat_messages
+                    : (Array.isArray(item.messages) ? item.messages : []);
+
+                totalMessages += msgs.length;
+
+                // 提取标题：若 name 为空，取第一条消息前 36 个字作为标题
+                let title = (item.name || item.title || '').trim();
+                let preview = '';
+                if (msgs.length > 0) {
+                    const firstText = getPlainMessageText(msgs[0]).replace(/\s+/g, ' ').trim();
+                    preview = firstText.slice(0, 90);
+                    if (!title && firstText) {
+                        title = firstText.slice(0, 36) + (firstText.length > 36 ? '...' : '');
+                    }
+                }
+                if (!title) title = '未命名对话';
+
+                const createdTs = item.created_at ? new Date(item.created_at).getTime() : 0;
+                const updatedTs = item.updated_at ? new Date(item.updated_at).getTime() : createdTs;
+
+                cleaned.push({
+                    uuid: item.uuid || `conv_${i}`,
+                    title,
+                    summary: item.summary || '',
+                    preview,
+                    created_at: item.created_at || '',
+                    updated_at: item.updated_at || item.created_at || '',
+                    createdTs: isNaN(createdTs) ? 0 : createdTs,
+                    updatedTs: isNaN(updatedTs) ? 0 : updatedTs,
+                    msgCount: msgs.length,
+                    messages: msgs
+                });
+            }
+
+            state.allConversations = cleaned;
+            els.statsBadge.textContent = `共 ${cleaned.length} 段对话 · ${totalMessages.toLocaleString()} 条消息`;
+            els.searchArea.classList.remove('hidden');
+            els.sidebarEmptyHint.classList.add('hidden');
+
+            applyFilterAndSort();
+
+            // 桌面端默认打开第一条对话；手机端停留在列表页方便用户自行点选
+            if (window.innerWidth >= 768 && state.filteredConversations.length > 0) {
+                selectConversation(state.filteredConversations[0].uuid);
+            } else {
+                showMobileListView();
+            }
+        }
+
+        // =========================================================================
+        // 列表搜索、排序与虚拟分页渲染
+        // =========================================================================
+        function applyFilterAndSort() {
+            const q = state.searchQuery.trim().toLowerCase();
+            const fullText = els.fullTextSearchToggle.checked;
+            const sortBy = els.sortSelect.value;
+
+            let result = [];
+
+            if (!q) {
+                result = state.allConversations.slice();
+            } else {
+                for (const conv of state.allConversations) {
+                    if (conv.title.toLowerCase().includes(q) || (conv.summary && conv.summary.toLowerCase().includes(q))) {
+                        conv._matchSnippet = '';
+                        result.push(conv);
+                        continue;
+                    }
+                    if (fullText) {
+                        let matchedSnippet = '';
+                        for (const m of conv.messages) {
+                            const txt = getPlainMessageText(m);
+                            const idx = txt.toLowerCase().indexOf(q);
+                            if (idx !== -1) {
+                                const start = Math.max(0, idx - 18);
+                                const end = Math.min(txt.length, idx + q.length + 36);
+                                matchedSnippet = (start > 0 ? '...' : '') + txt.slice(start, end).replace(/\s+/g, ' ') + (end < txt.length ? '...' : '');
+                                break;
+                            }
+                        }
+                        if (matchedSnippet) {
+                            conv._matchSnippet = matchedSnippet;
+                            result.push(conv);
+                        }
+                    }
+                }
+            }
+
+            // 排序
+            result.sort((a, b) => {
+                if (sortBy === 'created_desc') return b.createdTs - a.createdTs;
+                if (sortBy === 'created_asc') return a.createdTs - b.createdTs;
+                if (sortBy === 'messages_desc') return b.msgCount - a.msgCount;
+                return b.updatedTs - a.updatedTs; // 默认按最近更新
+            });
+
+            state.filteredConversations = result;
+            state.renderedCount = 0;
+            els.conversationList.innerHTML = '';
+
+            if (result.length === 0) {
+                els.conversationList.innerHTML = `
+                    <div class="text-center py-12 px-4 text-claude-muted dark:text-claude-darkMuted text-xs">
+                        <i class="fa-solid fa-magnifying-glass text-xl mb-2 opacity-50 block"></i>
+                        没有找到匹配的对话
+                    </div>
+                `;
+                return;
+            }
+
+            renderMoreConversations();
+        }
+
+        function renderMoreConversations() {
+            const total = state.filteredConversations.length;
+            if (state.renderedCount >= total) return;
+
+            const nextBatch = state.filteredConversations.slice(
+                state.renderedCount,
+                state.renderedCount + state.pageSize
+            );
+
+            const fragment = document.createDocumentFragment();
+            const q = state.searchQuery.trim();
+
+            for (const conv of nextBatch) {
+                const btn = document.createElement('button');
+                const isActive = conv.uuid === state.activeUuid;
+                btn.dataset.uuid = conv.uuid;
+                btn.className = `conv-item w-full text-left px-3 py-2.5 rounded-xl transition flex flex-col gap-1 border ${
+                    isActive
+                        ? 'bg-claude-card dark:bg-claude-darkCard border-claude-accent/50 shadow-sm'
+                        : 'border-transparent hover:bg-black/5 dark:hover:bg-white/5'
+                }`;
+
+                const snippetText = (q && conv._matchSnippet) ? conv._matchSnippet : (conv.preview || '暂无消息内容');
+                const displayDate = formatDateTime(conv.updated_at || conv.created_at, true);
+
+                btn.innerHTML = `
+                    <div class="flex items-start justify-between gap-2">
+                        <span class="font-medium text-sm leading-snug line-clamp-1 ${isActive ? 'text-claude-accent' : ''}">${highlightKeyword(conv.title, q)}</span>
+                        <span class="text-[11px] text-claude-muted dark:text-claude-darkMuted flex-shrink-0 mt-0.5">${conv.msgCount}条</span>
+                    </div>
+                    <p class="text-xs text-claude-muted dark:text-claude-darkMuted line-clamp-1">${highlightKeyword(snippetText, q)}</p>
+                    <span class="text-[10px] text-claude-muted/75 dark:text-claude-darkMuted/75">${displayDate}</span>
+                `;
+
+                btn.addEventListener('click', () => selectConversation(conv.uuid));
+                fragment.appendChild(btn);
+            }
+
+            els.conversationList.appendChild(fragment);
+            state.renderedCount += nextBatch.length;
+        }
+
+        function highlightKeyword(text, keyword) {
+            const safe = escapeHtml(text);
+            if (!keyword) return safe;
+            const escapedKw = escapeHtml(keyword).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            try {
+                return safe.replace(new RegExp(`(${escapedKw})`, 'gi'), '<mark class="search-hl">$1</mark>');
+            } catch {
+                return safe;
+            }
+        }
+
+        // =========================================================================
+        // Markdown + <antArtifact> / <antThinking> 安全渲染引擎
+        // =========================================================================
+        function renderRichMarkdown(rawText) {
+            if (!rawText) return '';
+
+            const placeholders = [];
+            let processed = rawText;
+
+            // 1. 提取文本中内嵌的 <antThinking>...</antThinking> 标签
+            processed = processed.replace(/<antThinking>([\s\S]*?)<\/antThinking>/gi, (_, inner) => {
+                const token = `@@CLAUDE_BLOCK_${placeholders.length}@@`;
+                placeholders.push(buildCollapsibleHtml('思考过程 (Thinking)', 'fa-brain', inner.trim(), false));
+                return `\n\n${token}\n\n`;
+            });
+
+            // 2. 提取文本中内嵌的 <antArtifact ...>...</antArtifact> 代码/文档工件标签
+            processed = processed.replace(/<antArtifact([^>]*)>([\s\S]*?)<\/antArtifact>/gi, (_, attrs, inner) => {
+                const titleMatch = attrs.match(/title="([^"]*)"/i);
+                const typeMatch = attrs.match(/type="([^"]*)"/i);
+                const artTitle = titleMatch ? titleMatch[1] : 'Claude Artifact 工件';
+                const artType = typeMatch ? typeMatch[1] : '';
+                const token = `@@CLAUDE_BLOCK_${placeholders.length}@@`;
+                placeholders.push(buildArtifactCardHtml(artTitle, artType, inner.trim()));
+                return `\n\n${token}\n\n`;
+            });
+
+            // 3. 解析 Markdown 并过滤 XSS
+            let html = '';
+            if (window.marked) {
+                html = marked.parse(processed);
+                if (window.DOMPurify) {
+                    html = DOMPurify.sanitize(html);
+                }
+            } else {
+                html = `<div class="whitespace-pre-wrap">${escapeHtml(processed)}</div>`;
+            }
+
+            // 4. 还原折叠块与 Artifact 卡片
+            placeholders.forEach((cardHtml, index) => {
+                html = html.replace(`@@CLAUDE_BLOCK_${index}@@`, cardHtml);
+            });
+
+            return html;
+        }
+
+        function buildCollapsibleHtml(title, iconClass, content, isCode = false) {
+            const body = isCode
+                ? `<pre class="text-xs overflow-x-auto p-3 rounded-lg bg-zinc-900 text-zinc-100 font-mono mt-2"><code>${escapeHtml(content)}</code></pre>`
+                : `<div class="text-xs leading-relaxed whitespace-pre-wrap text-claude-muted dark:text-claude-darkMuted mt-2 pl-3 border-l-2 border-claude-accent/40">${escapeHtml(content)}</div>`;
+
+            return `
+                <details class="group my-2 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-claude-border dark:border-claude-darkBorder px-3.5 py-2.5">
+                    <summary class="cursor-pointer list-none flex items-center justify-between text-xs font-medium text-claude-muted dark:text-claude-darkMuted select-none">
+                        <span class="inline-flex items-center gap-2">
+                            <i class="fa-solid ${iconClass} text-claude-accent/80"></i>
+                            <span>${escapeHtml(title)}</span>
+                        </span>
+                        <i class="fa-solid fa-chevron-down text-[10px] transition-transform group-open:rotate-180"></i>
+                    </summary>
+                    ${body}
+                </details>
+            `;
+        }
+
+        function buildArtifactCardHtml(title, type, content) {
+            return `
+                <details class="group my-3 rounded-xl border border-claude-border dark:border-claude-darkBorder bg-claude-bg dark:bg-claude-darkSidebar overflow-hidden shadow-sm">
+                    <summary class="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-2 bg-claude-sidebar/60 dark:bg-white/5 select-none">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-7 h-7 rounded-lg bg-claude-accent/15 text-claude-accent flex items-center justify-center flex-shrink-0">
+                                <i class="fa-solid fa-cube text-xs"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-xs font-semibold truncate">${escapeHtml(title)}</div>
+                                ${type ? `<div class="text-[10px] text-claude-muted dark:text-claude-darkMuted truncate">${escapeHtml(type)}</div>` : ''}
+                            </div>
+                        </div>
+                        <span class="text-xs text-claude-accent font-medium flex items-center gap-1 flex-shrink-0">
+                            <span class="group-open:hidden">展开内容</span>
+                            <span class="hidden group-open:inline">收起</span>
+                            <i class="fa-solid fa-chevron-down text-[10px] transition-transform group-open:rotate-180"></i>
+                        </span>
+                    </summary>
+                    <div class="p-3 bg-zinc-950 text-zinc-100 overflow-x-auto">
+                        <pre class="!m-0 text-xs font-mono leading-relaxed"><code>${escapeHtml(content)}</code></pre>
+                    </div>
+                </details>
+            `;
+        }
+
+        // =========================================================================
+        // 选中并渲染单段对话详情
+        // =========================================================================
+        function selectConversation(uuid) {
+            const conv = state.allConversations.find(c => c.uuid === uuid);
+            if (!conv) return;
+
+            state.activeUuid = uuid;
+            state.inChatQuery = '';
+            els.inChatSearchInput.value = '';
+            els.inChatMatchCount.textContent = '';
+            els.inChatSearchBar.classList.add('hidden');
+
+            // 更新左侧选中高亮样式
+            document.querySelectorAll('.conv-item').forEach(btn => {
+                const active = btn.dataset.uuid === uuid;
+                btn.classList.toggle('bg-claude-card', active);
+                btn.classList.toggle('dark:bg-claude-darkCard', active);
+                btn.classList.toggle('border-claude-accent/50', active);
+                btn.classList.toggle('shadow-sm', active);
+                btn.classList.toggle('border-transparent', !active);
+                const titleSpan = btn.querySelector('span');
+                if (titleSpan) titleSpan.classList.toggle('text-claude-accent', active);
+            });
+
+            // 切换到对话面板（适配手机端单栏切换）
+            els.welcomeDropzone.classList.add('hidden');
+            els.chatContainer.classList.remove('hidden');
+            showMobileChatView();
+
+            // 设置头部元数据
+            els.activeChatTitle.textContent = conv.title;
+            els.activeChatMeta.textContent = `创建于 ${formatDateTime(conv.created_at)} · 共 ${conv.msgCount} 条消息`;
+
+            renderMessages(conv);
+            els.messagesScrollArea.scrollTop = 0;
+        }
+
+        function renderMessages(conv) {
+            els.messagesList.innerHTML = '';
+            const filterKw = state.inChatQuery.trim().toLowerCase();
+
+            // 如果对话自带 summary 摘要，展示在最上方
+            if (conv.summary && !filterKw) {
+                const summaryBox = document.createElement('div');
+                summaryBox.className = 'p-3.5 rounded-2xl bg-claude-accent/10 border border-claude-accent/20 text-xs leading-relaxed';
+                summaryBox.innerHTML = `<span class="font-semibold text-claude-accent mr-1"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>对话摘要：</span>${escapeHtml(conv.summary)}`;
+                els.messagesList.appendChild(summaryBox);
+            }
+
+            if (!conv.messages || conv.messages.length === 0) {
+                els.messagesList.innerHTML += `
+                    <div class="text-center py-16 text-claude-muted dark:text-claude-darkMuted text-sm">
+                        该对话内暂无消息记录
+                    </div>
+                `;
+                return;
+            }
+
+            const fragment = document.createDocumentFragment();
+            let matchCount = 0;
+
+            conv.messages.forEach((msg, idx) => {
+                const plain = getPlainMessageText(msg);
+                if (filterKw && !plain.toLowerCase().includes(filterKw)) {
+                    return;
+                }
+                matchCount++;
+
+                const sender = (msg.sender || msg.role || '').toLowerCase();
+                const isHuman = sender === 'human' || sender === 'user';
+                const parts = extractMessageParts(msg);
+                const timeStr = formatDateTime(msg.created_at);
+
+                const wrapper = document.createElement('article');
+                wrapper.className = `flex flex-col ${isHuman ? 'items-end' : 'items-start'}`;
+
+                const card = document.createElement('div');
+                card.className = isHuman
+                    ? 'max-w-[92%] sm:max-w-[85%] rounded-2xl rounded-tr-sm px-4 py-3 bg-claude-human dark:bg-claude-darkHuman text-claude-text dark:text-claude-darkText shadow-sm'
+                    : 'w-full rounded-2xl px-4 sm:px-5 py-4 bg-claude-card dark:bg-claude-darkCard border border-claude-border dark:border-claude-darkBorder shadow-sm';
+
+                // 角色标签与单条复制按钮
+                let headerHtml = `
+                    <div class="flex items-center justify-between gap-3 mb-2 text-xs text-claude-muted dark:text-claude-darkMuted">
+                        <div class="flex items-center gap-1.5 font-medium">
+                            ${isHuman
+                                ? '<span class="w-5 h-5 rounded-full bg-stone-500/20 flex items-center justify-center text-[10px]"><i class="fa-solid fa-user"></i></span><span>我 (You)</span>'
+                                : '<span class="w-5 h-5 rounded-full bg-claude-accent text-white flex items-center justify-center text-[10px]"><i class="fa-solid fa-sparkles"></i></span><span class="text-claude-text dark:text-claude-darkText">Claude</span>'
+                            }
+                            ${timeStr ? `<span class="opacity-65 font-normal ml-1 text-[11px]">${timeStr}</span>` : ''}
+                        </div>
+                        <button class="copy-msg-btn opacity-60 hover:opacity-100 p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 transition" title="复制此条消息">
+                            <i class="fa-regular fa-copy"></i>
+                        </button>
+                    </div>
+                `;
+
+                // 附件展示区
+                let attachmentsHtml = '';
+                if (parts.attachments.length > 0) {
+                    attachmentsHtml = '<div class="flex flex-wrap gap-2 mb-2.5">';
+                    for (const att of parts.attachments) {
+                        if (att.extracted) {
+                            attachmentsHtml += `
+                                <details class="w-full rounded-xl bg-black/5 dark:bg-white/5 border border-claude-border dark:border-claude-darkBorder px-3 py-2 text-xs">
+                                    <summary class="cursor-pointer font-medium flex items-center justify-between">
+                                        <span class="truncate"><i class="fa-solid fa-paperclip text-claude-accent mr-1.5"></i>${escapeHtml(att.name)}</span>
+                                        <span class="text-[10px] text-claude-accent ml-2 flex-shrink-0">查看附件文本</span>
+                                    </summary>
+                                    <pre class="mt-2 p-2.5 rounded-lg bg-zinc-900 text-zinc-100 overflow-x-auto text-[11px] max-h-60 font-mono">${escapeHtml(att.extracted)}</pre>
+                                </details>
+                            `;
+                        } else {
+                            attachmentsHtml += `
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/5 dark:bg-white/10 text-xs">
+                                    <i class="fa-solid fa-file text-claude-accent"></i>
+                                    <span class="truncate max-w-[200px]">${escapeHtml(att.name)}</span>
+                                </span>
+                            `;
+                        }
+                    }
+                    attachmentsHtml += '</div>';
+                }
+
+                // 思考过程展示区
+                let thinkingHtml = '';
+                for (const think of parts.thinkingBlocks) {
+                    thinkingHtml += buildCollapsibleHtml('思考过程 (Thinking)', 'fa-brain', think, false);
+                }
+
+                // 工具调用展示区
+                let toolsHtml = '';
+                for (const tool of parts.toolBlocks) {
+                    toolsHtml += buildCollapsibleHtml(`${tool.kind}：${tool.name}`, 'fa-screwdriver-wrench', tool.detail, true);
+                }
+
+                // 正文 Markdown 区
+                const combinedText = parts.textBlocks.join('\n\n');
+                let bodyHtml = '';
+                if (combinedText.trim()) {
+                    bodyHtml = `<div class="markdown-body">${renderRichMarkdown(combinedText)}</div>`;
+                } else if (!thinkingHtml && !toolsHtml && !attachmentsHtml) {
+                    bodyHtml = `<p class="text-xs italic text-claude-muted">（空消息）</p>`;
+                }
+
+                card.innerHTML = headerHtml + attachmentsHtml + thinkingHtml + toolsHtml + bodyHtml;
+
+                // 绑定单条消息复制事件
+                const copyBtn = card.querySelector('.copy-msg-btn');
+                if (copyBtn) {
+                    copyBtn.addEventListener('click', () => {
+                        copyTextToClipboard(combinedText || plain);
+                    });
+                }
+
+                // 为代码块添加一键复制按钮与语法高亮
+                card.querySelectorAll('pre code').forEach((codeBlock) => {
+                    if (window.hljs) {
+                        try { hljs.highlightElement(codeBlock); } catch {}
+                    }
+                    const pre = codeBlock.parentElement;
+                    if (pre && !pre.dataset.hasCopy) {
+                        pre.dataset.hasCopy = '1';
+                        pre.classList.add('relative', 'group');
+                        const btn = document.createElement('button');
+                        btn.className = 'absolute top-2 right-2 px-2 py-1 rounded-md bg-white/15 hover:bg-white/25 text-zinc-200 text-[11px] backdrop-blur-sm transition';
+                        btn.innerHTML = '<i class="fa-regular fa-copy mr-1"></i>复制代码';
+                        btn.addEventListener('click', () => copyTextToClipboard(codeBlock.textContent));
+                        pre.appendChild(btn);
+                    }
+                });
+
+                wrapper.appendChild(card);
+                fragment.appendChild(wrapper);
+            });
+
+            els.messagesList.appendChild(fragment);
+
+            if (filterKw) {
+                els.inChatMatchCount.textContent = `${matchCount} 条匹配`;
+            } else {
+                els.inChatMatchCount.textContent = '';
+            }
+        }
+
+        // =========================================================================
+        // 导出当前对话为 Markdown (.md)
+        // =========================================================================
+        function buildConversationMarkdown(conv) {
+            let lines = [];
+            lines.push(`# ${conv.title}`);
+            lines.push('');
+            lines.push(`- **创建时间**: ${formatDateTime(conv.created_at)}`);
+            lines.push(`- **更新时间**: ${formatDateTime(conv.updated_at)}`);
+            lines.push(`- **消息数量**: ${conv.msgCount}`);
+            if (conv.summary) {
+                lines.push(`- **对话摘要**: ${conv.summary}`);
+            }
+            lines.push('\n---\n');
+
+            for (const msg of conv.messages) {
+                const sender = (msg.sender || msg.role || '').toLowerCase();
+                const roleTitle = (sender === 'human' || sender === 'user') ? '👤 **You**' : '🤖 **Claude**';
+                const time = formatDateTime(msg.created_at);
+                lines.push(`### ${roleTitle} ${time ? `_(${time})_` : ''}\n`);
+
+                const parts = extractMessageParts(msg);
+                for (const think of parts.thinkingBlocks) {
+                    lines.push(`<details><summary>思考过程</summary>\n\n${think}\n\n</details>\n`);
+                }
+                if (parts.textBlocks.length > 0) {
+                    lines.push(parts.textBlocks.join('\n\n') + '\n');
+                }
+                lines.push('\n---\n');
+            }
+            return lines.join('\n');
+        }
+
+        function exportActiveChatMarkdown() {
+            const conv = state.allConversations.find(c => c.uuid === state.activeUuid);
+            if (!conv) return;
+            const md = buildConversationMarkdown(conv);
+            const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const safeTitle = conv.title.replace(/[\\/:*?"<>|]/g, '_').slice(0, 50) || 'claude_chat';
+            a.href = url;
+            a.download = `${safeTitle}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('已开始下载 Markdown 文件', 'success');
+        }
+
+        // =========================================================================
+        // 手机端单栏响应式导航控制
+        // =========================================================================
+        function showMobileChatView() {
+            if (window.innerWidth < 768) {
+                els.sidebarPanel.classList.add('hidden');
+                els.mainPanel.classList.remove('hidden');
+                els.mainPanel.classList.add('flex');
+            }
+        }
+
+        function showMobileListView() {
+            if (window.innerWidth < 768) {
+                els.mainPanel.classList.add('hidden');
+                els.mainPanel.classList.remove('flex');
+                els.sidebarPanel.classList.remove('hidden');
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 768) {
+                els.sidebarPanel.classList.remove('hidden');
+                els.mainPanel.classList.remove('hidden');
+                els.mainPanel.classList.add('flex');
+            } else {
+                if (state.activeUuid && !els.chatContainer.classList.contains('hidden')) {
+                    showMobileChatView();
+                } else {
+                    showMobileListView();
+                }
+            }
+        });
+
+        // =========================================================================
+        // 事件监听绑定
+        // =========================================================================
+        els.fileInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        // 支持桌面端拖拽上传
+        ['dragenter', 'dragover'].forEach(evtName => {
+            document.body.addEventListener(evtName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                els.dropArea.classList.add('border-claude-accent', 'bg-claude-accent/5');
+            });
+        });
+        ['dragleave', 'drop'].forEach(evtName => {
+            document.body.addEventListener(evtName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                els.dropArea.classList.remove('border-claude-accent', 'bg-claude-accent/5');
+            });
+        });
+        document.body.addEventListener('drop', (e) => {
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+                handleFileSelect(e.dataTransfer.files[0]);
+            }
+        });
+
+        // 左侧列表滚动触底加载更多
+        els.conversationList.addEventListener('scroll', () => {
+            const el = els.conversationList;
+            if (el.scrollTop + el.clientHeight >= el.scrollHeight - 180) {
+                renderMoreConversations();
+            }
+        });
+
+        // 全局搜索防抖（避免 95MB 全文搜索在打字时卡顿）
+        let searchTimer = null;
+        els.searchInput.addEventListener('input', () => {
+            const val = els.searchInput.value;
+            els.clearSearchBtn.classList.toggle('hidden', !val);
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                state.searchQuery = val;
+                applyFilterAndSort();
+            }, 260);
+        });
+
+        els.clearSearchBtn.addEventListener('click', () => {
+            els.searchInput.value = '';
+            els.clearSearchBtn.classList.add('hidden');
+            state.searchQuery = '';
+            applyFilterAndSort();
+        });
+
+        els.fullTextSearchToggle.addEventListener('change', () => {
+            if (state.searchQuery.trim()) applyFilterAndSort();
+        });
+
+        els.sortSelect.addEventListener('change', applyFilterAndSort);
+
+        // 手机端返回对话列表
+        els.backToListBtn.addEventListener('click', showMobileListView);
+
+        // 深浅色主题切换
+        els.themeToggleBtn.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+        });
+
+        // 对话内搜索筛选
+        els.inChatSearchBtn.addEventListener('click', () => {
+            const hidden = els.inChatSearchBar.classList.toggle('hidden');
+            if (!hidden) {
+                els.inChatSearchInput.focus();
+            } else {
+                state.inChatQuery = '';
+                els.inChatSearchInput.value = '';
+                const conv = state.allConversations.find(c => c.uuid === state.activeUuid);
+                if (conv) renderMessages(conv);
+            }
+        });
+
+        els.closeInChatSearchBtn.addEventListener('click', () => {
+            els.inChatSearchBar.classList.add('hidden');
+            state.inChatQuery = '';
+            els.inChatSearchInput.value = '';
+            const conv = state.allConversations.find(c => c.uuid === state.activeUuid);
+            if (conv) renderMessages(conv);
+        });
+
+        let inChatTimer = null;
+        els.inChatSearchInput.addEventListener('input', () => {
+            clearTimeout(inChatTimer);
+            inChatTimer = setTimeout(() => {
+                state.inChatQuery = els.inChatSearchInput.value;
+                const conv = state.allConversations.find(c => c.uuid === state.activeUuid);
+                if (conv) renderMessages(conv);
+            }, 200);
+        });
+
+        // 复制整段对话与导出 MD
+        els.copyChatBtn.addEventListener('click', () => {
+            const conv = state.allConversations.find(c => c.uuid === state.activeUuid);
+            if (conv) copyTextToClipboard(buildConversationMarkdown(conv));
+        });
+        els.exportMdBtn.addEventListener('click', exportActiveChatMarkdown);
+
+        // 快速回到顶部/底部
+        els.scrollTopBtn.addEventListener('click', () => {
+            els.messagesScrollArea.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        els.scrollBottomBtn.addEventListener('click', () => {
+            els.messagesScrollArea.scrollTo({ top: els.messagesScrollArea.scrollHeight, behavior: 'smooth' });
+        });
+    </script>
+</body>
+</html>
