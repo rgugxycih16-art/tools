@@ -271,17 +271,18 @@
                         <span>全文搜索</span>
                     </label>
 
-                    <div class="flex items-center gap-1 text-claude-muted dark:text-claude-darkMuted">
-                        <i class="fa-solid fa-arrow-down-wide-short text-[11px]"></i>
-                        <select id="sortSelect" class="bg-transparent text-claude-muted dark:text-claude-darkMuted focus:outline-none cursor-pointer text-xs py-0.5">
-                            <option value="updated_desc">最近更新</option>
-                            <option value="updated_asc">最早更新</option>
-                            <option value="created_desc">最新创建</option>
-                            <option value="created_asc">最早创建</option>
-                            <option value="messages_desc">消息最多</option>
-                            <option value="messages_asc">消息最少</option>
-                            <option value="title_asc">标题名称 (A-Z)</option>
+                    <div class="flex items-center gap-1.5 text-claude-muted dark:text-claude-darkMuted">
+                        <select id="sortSelect" class="bg-claude-card dark:bg-claude-darkCard border border-claude-border dark:border-claude-darkBorder rounded-lg px-2 py-1 text-claude-text dark:text-claude-darkText focus:outline-none cursor-pointer text-xs">
+                            <option value="custom">手动上下排序</option>
+                            <option value="updated" selected>按更新时间</option>
+                            <option value="created">按创建时间</option>
+                            <option value="messages">按消息数量</option>
+                            <option value="title">按标题名称</option>
                         </select>
+                        <button id="sortDirBtn" type="button" title="点击切换向上(升序) / 向下(降序)" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-claude-card dark:bg-claude-darkCard border border-claude-border dark:border-claude-darkBorder hover:border-claude-accent text-claude-text dark:text-claude-darkText text-xs font-medium transition active:scale-95">
+                            <i id="sortDirIcon" class="fa-solid fa-arrow-down text-[11px] text-claude-accent"></i>
+                            <span id="sortDirLabel">向下</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -416,7 +417,10 @@
                 deleted: {},         // { [uuid]: deletedTimestamp } (回收站)
                 hardDeleted: {},     // { [uuid]: true } (彻底隐藏删除)
                 categories: ['工作', '学习', '编程', '生活'],
-                convCategory: {}     // { [uuid]: categoryName }
+                convCategory: {},    // { [uuid]: categoryName }
+                orderMap: {},        // { [uuid]: number } 手动上下排序序号
+                sortField: 'updated',
+                sortDir: 'desc'
             };
             try {
                 const raw = localStorage.getItem(ORG_STORAGE_KEY);
@@ -427,7 +431,10 @@
                     deleted: parsed.deleted || {},
                     hardDeleted: parsed.hardDeleted || {},
                     categories: Array.isArray(parsed.categories) ? parsed.categories : fallback.categories,
-                    convCategory: parsed.convCategory || {}
+                    convCategory: parsed.convCategory || {},
+                    orderMap: parsed.orderMap || {},
+                    sortField: parsed.sortField || 'updated',
+                    sortDir: parsed.sortDir || 'desc'
                 };
             } catch {
                 return fallback;
@@ -474,6 +481,9 @@
             manageCategoriesBtn: document.getElementById('manageCategoriesBtn'),
             fullTextSearchToggle: document.getElementById('fullTextSearchToggle'),
             sortSelect: document.getElementById('sortSelect'),
+            sortDirBtn: document.getElementById('sortDirBtn'),
+            sortDirIcon: document.getElementById('sortDirIcon'),
+            sortDirLabel: document.getElementById('sortDirLabel'),
             conversationList: document.getElementById('conversationList'),
             sidebarEmptyHint: document.getElementById('sidebarEmptyHint'),
             welcomeDropzone: document.getElementById('welcomeDropzone'),
@@ -504,49 +514,90 @@
             closeModalBtn: document.getElementById('closeModalBtn')
         };
 
-        // DOM 元素引用
-        const els = {
-            fileInput: document.getElementById('fileInput'),
-            loadingOverlay: document.getElementById('loadingOverlay'),
-            loadingTitle: document.getElementById('loadingTitle'),
-            loadingSubtext: document.getElementById('loadingSubtext'),
-            sidebarPanel: document.getElementById('sidebarPanel'),
-            mainPanel: document.getElementById('mainPanel'),
-            statsBadge: document.getElementById('statsBadge'),
-            searchArea: document.getElementById('searchArea'),
-            searchInput: document.getElementById('searchInput'),
-            clearSearchBtn: document.getElementById('clearSearchBtn'),
-            fullTextSearchToggle: document.getElementById('fullTextSearchToggle'),
-            sortSelect: document.getElementById('sortSelect'),
-            conversationList: document.getElementById('conversationList'),
-            sidebarEmptyHint: document.getElementById('sidebarEmptyHint'),
-            welcomeDropzone: document.getElementById('welcomeDropzone'),
-            dropArea: document.getElementById('dropArea'),
-            chatContainer: document.getElementById('chatContainer'),
-            backToListBtn: document.getElementById('backToListBtn'),
-            activeChatTitle: document.getElementById('activeChatTitle'),
-            activeChatMeta: document.getElementById('activeChatMeta'),
-            messagesScrollArea: document.getElementById('messagesScrollArea'),
-            messagesList: document.getElementById('messagesList'),
-            themeToggleBtn: document.getElementById('themeToggleBtn'),
-            inChatSearchBtn: document.getElementById('inChatSearchBtn'),
-            inChatSearchBar: document.getElementById('inChatSearchBar'),
-            inChatSearchInput: document.getElementById('inChatSearchInput'),
-            inChatMatchCount: document.getElementById('inChatMatchCount'),
-            closeInChatSearchBtn: document.getElementById('closeInChatSearchBtn'),
-            copyChatBtn: document.getElementById('copyChatBtn'),
-            exportMdBtn: document.getElementById('exportMdBtn'),
-            scrollTopBtn: document.getElementById('scrollTopBtn'),
-            scrollBottomBtn: document.getElementById('scrollBottomBtn'),
-            toastContainer: document.getElementById('toastContainer')
-        };
-
         // 配置 Marked.js（若 CDN 可用）
         if (window.marked) {
             marked.setOptions({
                 breaks: true,
                 gfm: true
             });
+        }
+
+        // 初始化排序下拉框与上下方向按钮状态
+        function syncSortControlsUI() {
+            const validFields = ['custom', 'updated', 'created', 'messages', 'title'];
+            if (!validFields.includes(state.org.sortField)) {
+                state.org.sortField = 'updated';
+            }
+            els.sortSelect.value = state.org.sortField;
+            const isAsc = state.org.sortDir === 'asc';
+            els.sortDirIcon.className = `fa-solid ${isAsc ? 'fa-arrow-up' : 'fa-arrow-down'} text-[11px] text-claude-accent`;
+            els.sortDirLabel.textContent = isAsc ? '向上' : '向下';
+        }
+        syncSortControlsUI();
+
+        // 手动向上/向下移动单条对话位置
+        function moveConversationOrder(uuid, delta) {
+            const list = state.filteredConversations;
+            const idx = list.findIndex(c => c.uuid === uuid);
+            if (idx === -1) return;
+
+            const targetIdx = idx + delta;
+            if (targetIdx < 0 || targetIdx >= list.length) return;
+
+            const currConv = list[idx];
+            const targetConv = list[targetIdx];
+
+            // 置顶区与普通区分界保护：置顶对话与未置顶对话互不越界
+            if (state.activeCategory !== '__trash__') {
+                const currPinned = !!state.org.pinned[currConv.uuid];
+                const targetPinned = !!state.org.pinned[targetConv.uuid];
+                if (currPinned !== targetPinned) {
+                    showToast(currPinned ? '已到达置顶区底部' : '请先置顶该对话再移至置顶区上方');
+                    return;
+                }
+            }
+
+            // 如果当前不是“手动上下排序”模式，先将当前全量排序固化为初始序号并切到手动模式
+            if (state.org.sortField !== 'custom') {
+                const currentIds = new Set(list.map(c => c.uuid));
+                let rank = 0;
+                for (const c of list) {
+                    state.org.orderMap[c.uuid] = rank++;
+                }
+                for (const c of state.allConversations) {
+                    if (!currentIds.has(c.uuid)) {
+                        state.org.orderMap[c.uuid] = rank++;
+                    }
+                }
+                state.org.sortField = 'custom';
+                state.org.sortDir = 'asc';
+                syncSortControlsUI();
+            } else {
+                // 确保当前可见列表都有唯一递增基准序号（兼容向上/向下反转视图）
+                const isAsc = state.org.sortDir === 'asc';
+                list.forEach((c, i) => {
+                    state.org.orderMap[c.uuid] = isAsc ? i : (list.length - 1 - i);
+                });
+            }
+
+            // 交换相邻两条对话的序号
+            const tempRank = state.org.orderMap[currConv.uuid];
+            state.org.orderMap[currConv.uuid] = state.org.orderMap[targetConv.uuid];
+            state.org.orderMap[targetConv.uuid] = tempRank;
+
+            saveOrgData();
+
+            // 保持列表滚动位置与已加载条数，实现无感平滑上下移动
+            const prevScrollTop = els.conversationList.scrollTop;
+            const keepCount = Math.max(state.renderedCount, targetIdx + 10);
+            applyFilterAndSort(keepCount);
+            els.conversationList.scrollTop = prevScrollTop;
+
+            const movedEl = els.conversationList.querySelector(`[data-uuid="${CSS.escape(uuid)}"]`);
+            if (movedEl) {
+                movedEl.classList.add('ring-2', 'ring-claude-accent/60');
+                setTimeout(() => movedEl.classList.remove('ring-2', 'ring-claude-accent/60'), 500);
+            }
         }
 
         // =========================================================================
@@ -1019,12 +1070,14 @@
                 if (isTrashed) {
                     container.innerHTML = `
                         <p class="text-xs text-claude-muted dark:text-claude-darkMuted">该对话当前位于回收站中，你可以将其恢复或彻底移除。</p>
-                        <div class="grid grid-cols-2 gap-2.5 pt-1">
-                            <button id="modalRestoreBtn" class="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs transition">
-                                <i class="fa-solid fa-rotate-left mr-1.5"></i>恢复对话
+                        <div class="flex items-center gap-2 pt-2">
+                            <button id="modalRestoreBtn" class="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs flex items-center justify-center gap-1.5 transition">
+                                <i class="fa-solid fa-rotate-left"></i>
+                                <span>恢复对话</span>
                             </button>
-                            <button id="modalHardDelBtn" class="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium text-xs transition">
-                                <i class="fa-solid fa-trash mr-1.5"></i>彻底删除
+                            <button id="modalHardDeleteBtn" class="flex-1 py-2.5 px-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium text-xs flex items-center justify-center gap-1.5 transition">
+                                <i class="fa-solid fa-trash"></i>
+                                <span>彻底删除</span>
                             </button>
                         </div>
                     `;
@@ -1032,26 +1085,46 @@
                         closeModal();
                         restoreFromTrash(uuid);
                     });
-                    container.querySelector('#modalHardDelBtn').addEventListener('click', () => {
+                    container.querySelector('#modalHardDeleteBtn').addEventListener('click', () => {
                         closeModal();
                         permanentlyDelete(uuid);
                     });
                     return;
                 }
 
-                // 快捷置顶操作
+                // 快捷置顶与上下移动操作
                 const quickRow = document.createElement('div');
-                quickRow.className = 'flex items-center gap-2';
+                quickRow.className = 'space-y-2';
                 quickRow.innerHTML = `
-                    <button id="modalPinBtn" class="flex-1 py-2.5 px-3 rounded-xl border border-claude-border dark:border-claude-darkBorder bg-claude-bg dark:bg-claude-darkSidebar hover:border-claude-accent font-medium text-xs flex items-center justify-center gap-2 transition">
-                        <i class="fa-solid fa-thumbtack ${isPinned ? 'text-claude-accent' : ''}"></i>
-                        <span>${isPinned ? '取消置顶' : '置顶此对话'}</span>
-                    </button>
-                    <button id="modalTrashBtn" class="py-2.5 px-3.5 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 font-medium text-xs flex items-center justify-center gap-1.5 transition">
-                        <i class="fa-regular fa-trash-can"></i>
-                        <span>移入回收站</span>
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button id="modalMoveUpBtn" class="flex-1 py-2 px-3 rounded-xl border border-claude-border dark:border-claude-darkBorder bg-claude-bg dark:bg-claude-darkSidebar hover:border-claude-accent font-medium text-xs flex items-center justify-center gap-1.5 transition">
+                            <i class="fa-solid fa-arrow-up text-claude-accent"></i>
+                            <span>向上移一位</span>
+                        </button>
+                        <button id="modalMoveDownBtn" class="flex-1 py-2 px-3 rounded-xl border border-claude-border dark:border-claude-darkBorder bg-claude-bg dark:bg-claude-darkSidebar hover:border-claude-accent font-medium text-xs flex items-center justify-center gap-1.5 transition">
+                            <i class="fa-solid fa-arrow-down text-claude-accent"></i>
+                            <span>向下移一位</span>
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="modalPinBtn" class="flex-1 py-2.5 px-3 rounded-xl border border-claude-border dark:border-claude-darkBorder bg-claude-bg dark:bg-claude-darkSidebar hover:border-claude-accent font-medium text-xs flex items-center justify-center gap-2 transition">
+                            <i class="fa-solid fa-thumbtack ${isPinned ? 'text-claude-accent' : ''}"></i>
+                            <span>${isPinned ? '取消置顶' : '置顶此对话'}</span>
+                        </button>
+                        <button id="modalTrashBtn" class="py-2.5 px-3.5 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 font-medium text-xs flex items-center justify-center gap-1.5 transition">
+                            <i class="fa-regular fa-trash-can"></i>
+                            <span>移入回收站</span>
+                        </button>
+                    </div>
                 `;
+                quickRow.querySelector('#modalMoveUpBtn').addEventListener('click', () => {
+                    closeModal();
+                    moveConversationOrder(uuid, -1);
+                });
+                quickRow.querySelector('#modalMoveDownBtn').addEventListener('click', () => {
+                    closeModal();
+                    moveConversationOrder(uuid, 1);
+                });
                 quickRow.querySelector('#modalPinBtn').addEventListener('click', () => {
                     closeModal();
                     togglePinConversation(uuid);
@@ -1219,10 +1292,11 @@
         // =========================================================================
         // 列表搜索、分类筛选、置顶优先排序与虚拟分页渲染
         // =========================================================================
-        function applyFilterAndSort() {
+        function applyFilterAndSort(minRenderCount = 0) {
             const q = state.searchQuery.trim().toLowerCase();
             const fullText = els.fullTextSearchToggle.checked;
-            const sortBy = els.sortSelect.value;
+            const sortField = state.org.sortField || 'updated';
+            const dirFactor = state.org.sortDir === 'asc' ? 1 : -1;
             const catFilter = state.activeCategory;
 
             // 1. 先按删除状态与分类过滤
@@ -1279,13 +1353,16 @@
                     if (pinB > 0 && pinA === 0) return 1;
                 }
 
-                if (sortBy === 'updated_asc') return a.updatedTs - b.updatedTs;
-                if (sortBy === 'created_desc') return b.createdTs - a.createdTs;
-                if (sortBy === 'created_asc') return a.createdTs - b.createdTs;
-                if (sortBy === 'messages_desc') return b.msgCount - a.msgCount;
-                if (sortBy === 'messages_asc') return a.msgCount - b.msgCount;
-                if (sortBy === 'title_asc') return a.title.localeCompare(b.title, 'zh-CN');
-                return b.updatedTs - a.updatedTs; // 默认按最近更新
+                if (sortField === 'custom') {
+                    const rankA = state.org.orderMap[a.uuid] ?? Number.MAX_SAFE_INTEGER;
+                    const rankB = state.org.orderMap[b.uuid] ?? Number.MAX_SAFE_INTEGER;
+                    if (rankA !== rankB) return (rankA - rankB) * dirFactor;
+                    return b.updatedTs - a.updatedTs;
+                }
+                if (sortField === 'created') return (a.createdTs - b.createdTs) * dirFactor;
+                if (sortField === 'messages') return (a.msgCount - b.msgCount) * dirFactor;
+                if (sortField === 'title') return a.title.localeCompare(b.title, 'zh-CN') * dirFactor;
+                return (a.updatedTs - b.updatedTs) * dirFactor; // 默认按更新时间
             });
 
             state.filteredConversations = result;
@@ -1302,26 +1379,34 @@
                 return;
             }
 
-            renderMoreConversations();
+            renderMoreConversations(minRenderCount);
         }
 
-        function renderMoreConversations() {
+        function renderMoreConversations(targetMinCount = 0) {
             const total = state.filteredConversations.length;
             if (state.renderedCount >= total) return;
 
+            const batchEnd = Math.max(state.renderedCount + state.pageSize, targetMinCount);
             const nextBatch = state.filteredConversations.slice(
                 state.renderedCount,
-                state.renderedCount + state.pageSize
+                Math.min(total, batchEnd)
             );
 
             const fragment = document.createDocumentFragment();
             const q = state.searchQuery.trim();
 
-            for (const conv of nextBatch) {
+            nextBatch.forEach((conv, offset) => {
+                const indexInList = state.renderedCount + offset;
                 const itemEl = document.createElement('div');
                 const isActive = conv.uuid === state.activeUuid;
                 const isPinned = !!state.org.pinned[conv.uuid];
                 const catName = state.org.convCategory[conv.uuid] || '';
+
+                // 判断是否可以继续上移/下移（考虑列表首尾与置顶分界线）
+                const prevConv = indexInList > 0 ? state.filteredConversations[indexInList - 1] : null;
+                const nextConv = indexInList < total - 1 ? state.filteredConversations[indexInList + 1] : null;
+                const canMoveUp = !!prevConv && (state.activeCategory === '__trash__' || !!state.org.pinned[prevConv.uuid] === isPinned);
+                const canMoveDown = !!nextConv && (state.activeCategory === '__trash__' || !!state.org.pinned[nextConv.uuid] === isPinned);
 
                 itemEl.dataset.uuid = conv.uuid;
                 itemEl.role = 'button';
@@ -1338,14 +1423,22 @@
                 const displayDate = formatDateTime(conv.updated_at || conv.created_at, true);
 
                 itemEl.innerHTML = `
-                    <div class="flex items-start justify-between gap-1.5">
+                    <div class="flex items-start justify-between gap-1">
                         <div class="flex items-center gap-1.5 min-w-0 flex-1">
                             ${isPinned ? '<i class="fa-solid fa-thumbtack text-[11px] text-claude-accent flex-shrink-0" title="已置顶"></i>' : ''}
                             <span class="conv-title font-medium text-sm leading-snug line-clamp-1 ${isActive ? 'text-claude-accent' : ''}">${highlightKeyword(conv.title, q)}</span>
                         </div>
-                        <button type="button" class="conv-more-btn flex-shrink-0 -mr-1 -mt-0.5 px-1.5 py-0.5 rounded-lg text-claude-muted hover:text-claude-text dark:hover:text-claude-darkText hover:bg-black/10 dark:hover:bg-white/10 transition" title="置顶 / 归类 / 删除">
-                            <i class="fa-solid fa-ellipsis text-xs"></i>
-                        </button>
+                        <div class="flex items-center gap-0.5 flex-shrink-0 -mr-1 -mt-0.5">
+                            <button type="button" class="conv-up-btn w-6 h-6 rounded-lg flex items-center justify-center text-claude-muted hover:text-claude-accent hover:bg-black/10 dark:hover:bg-white/10 transition ${canMoveUp ? '' : 'opacity-25 pointer-events-none'}" title="向上移一位">
+                                <i class="fa-solid fa-chevron-up text-[10px]"></i>
+                            </button>
+                            <button type="button" class="conv-down-btn w-6 h-6 rounded-lg flex items-center justify-center text-claude-muted hover:text-claude-accent hover:bg-black/10 dark:hover:bg-white/10 transition ${canMoveDown ? '' : 'opacity-25 pointer-events-none'}" title="向下移一位">
+                                <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                            </button>
+                            <button type="button" class="conv-more-btn w-6 h-6 rounded-lg flex items-center justify-center text-claude-muted hover:text-claude-text dark:hover:text-claude-darkText hover:bg-black/10 dark:hover:bg-white/10 transition" title="置顶 / 归类 / 删除">
+                                <i class="fa-solid fa-ellipsis text-xs"></i>
+                            </button>
+                        </div>
                     </div>
                     <p class="text-xs text-claude-muted dark:text-claude-darkMuted line-clamp-1">${highlightKeyword(snippetText, q)}</p>
                     <div class="flex items-center justify-between gap-2 mt-0.5">
@@ -1357,16 +1450,23 @@
                     </div>
                 `;
 
-                // 点击右侧更多按钮弹出管理菜单（阻止触发打开对话）
-                const moreBtn = itemEl.querySelector('.conv-more-btn');
-                moreBtn.addEventListener('click', (e) => {
+                // 向上/向下调整顺序按钮与更多操作菜单
+                itemEl.querySelector('.conv-up-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    moveConversationOrder(conv.uuid, -1);
+                });
+                itemEl.querySelector('.conv-down-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    moveConversationOrder(conv.uuid, 1);
+                });
+                itemEl.querySelector('.conv-more-btn').addEventListener('click', (e) => {
                     e.stopPropagation();
                     openConversationActionModal(conv.uuid);
                 });
 
                 itemEl.addEventListener('click', () => selectConversation(conv.uuid));
                 fragment.appendChild(itemEl);
-            }
+            });
 
             els.conversationList.appendChild(fragment);
             state.renderedCount += nextBatch.length;
@@ -1423,7 +1523,7 @@
 
             // 4. 还原折叠块与 Artifact 卡片
             placeholders.forEach((cardHtml, index) => {
-                html = html.replace(`@@CLAUDE_BLOCK_${index}@@`, cardHtml);
+                html = html.replace(`@@CLAUDE_BLOCK_${index}@@`, () => cardHtml);
             });
 
             return html;
@@ -1817,7 +1917,23 @@
             if (state.searchQuery.trim()) applyFilterAndSort();
         });
 
-        els.sortSelect.addEventListener('change', applyFilterAndSort);
+        els.sortSelect.addEventListener('change', () => {
+            state.org.sortField = els.sortSelect.value;
+            if (state.org.sortField === 'custom' && Object.keys(state.org.orderMap).length === 0) {
+                state.allConversations.forEach((c, i) => {
+                    state.org.orderMap[c.uuid] = i;
+                });
+            }
+            saveOrgData();
+            applyFilterAndSort();
+        });
+
+        els.sortDirBtn.addEventListener('click', () => {
+            state.org.sortDir = state.org.sortDir === 'asc' ? 'desc' : 'asc';
+            syncSortControlsUI();
+            saveOrgData();
+            applyFilterAndSort();
+        });
 
         // 弹窗关闭与分类管理事件
         els.closeModalBtn.addEventListener('click', closeModal);
